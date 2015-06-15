@@ -1,0 +1,3 @@
+[submodule "Hask"]
+	path = Hask
+	url = git://github.com/jwiegley/coq-haskell.git
