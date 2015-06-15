@@ -36,3 +36,5 @@ clean: Makefile.coq
 	rm -f Makefile.coq Setup
 	rm -fr dist .coq-native
 	rm -fr .hdevtools.sock *.glob *.d *.vo .*.aux
+	(cd src; rm -fr .hdevtools.sock *.glob *.d *.vo .*.aux)
+	(cd src/Pipes; rm -fr .hdevtools.sock *.glob *.d *.vo .*.aux)
