@@ -6,11 +6,6 @@ Require Export P.Pipes.Internal.
 
 Generalizable All Variables.
 
-Definition Either := sum.
-Definition Left {a b} : a -> Either a b := inl.
-Definition Right {a b} : b -> Either a b := inr.
-Definition return_ `{Monad m} {a} : a -> m a := pure.
-
 Fixpoint next `{Monad m} `(p : Producer a m r) :
   m (Either r (a * Producer a m r)) :=
   match p with

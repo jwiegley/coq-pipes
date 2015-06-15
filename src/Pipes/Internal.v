@@ -73,7 +73,6 @@ Module PipesLawsInternal.
 
 Include MonadLaws.
 
-Require Import Hask.Control.Category.
 Require Import FunctionalExtensionality.
 
 Tactic Notation "reduce_proxy" ident(IHu) tactic(T) :=

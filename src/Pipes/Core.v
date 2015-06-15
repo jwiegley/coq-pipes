@@ -122,7 +122,7 @@ Notation "x //< f" := (f >\\ x) (at level 60).
 Notation "f ~<< x" := (x >>~ f) (at level 60).
 Notation "x <<+ f" := (f +>> x) (at level 60).
 
-(* These three definitions should be moved, and the laws that use them. *)
+(* These definitions should be moved, and the laws that use them. *)
 
 Definition yield {a x' x m} (z : a) : Proxy x' x unit a m unit :=
   let go : Producer' a m unit := fun _ _ => respond z in @go x' x.
@@ -406,13 +406,6 @@ End Push.
 
 Section Pull.
 
-Definition pull `{Monad m} {a' a r} {n : nat} {default : r} :
-  a' -> Proxy a' a a' a m r :=
-  let fix go n x :=
-    if n isn't S n' then Pure default else
-    (Request ^~ (Respond ^~ @go n')) x
-  in go n.
-
 Lemma pull_respond `{Monad m} :
   forall `(f : b' -> Proxy a' a b' b m r)
          `(g : c' -> Proxy b' b c' c m r) x,
@@ -424,6 +417,13 @@ Lemma pull_m `{Monad m} :
          `(g : x -> Proxy b' b c' c m r) (h : m x),
   f +>> M g h = M (f >+> g) h.
 Proof. move=> x; reduce_over @M g y IHx. Qed.
+
+Definition pull `{Monad m} {a' a r} {n : nat} {default : r} :
+  a' -> Proxy a' a a' a m r :=
+  let fix go n x :=
+    if n isn't S n' then Pure default else
+    (Request ^~ (Respond ^~ @go n')) x
+  in go n.
 
 Variable n : nat.
 Variable r : Type.
