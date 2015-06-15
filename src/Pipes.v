@@ -6,6 +6,38 @@ Require Export P.Pipes.Internal.
 
 Generalizable All Variables.
 
+Definition yield {a x' x m} (z : a) : Proxy x' x unit a m unit :=
+  let go : Producer' a m unit := fun _ _ => respond z in @go x' x.
+
+Notation "f ~> g" := (f />/ g) (at level 70).
+Notation "f <~ g" := (f ~> g) (at level 70).
+
+Definition await {a y' y m} (z : a) : Proxy unit a y' y m a :=
+  let go : Consumer' a m a := fun _ _ => request tt in @go y' y.
+
+Notation "x >~ y" := ((fun _ : unit => x) >\\ y) (at level 70).
+Notation "x ~< y" := (y >~ x) (at level 70).
+
+Section Cat.
+
+Variable n : nat.
+Variable r : Type.
+Variable d : r.
+
+Definition cat `{Monad m} {a} : Pipe a a m r :=
+  pull (n:=n) (default:=d) tt.
+
+End Cat.
+
+Arguments cat {n r d m H a}.
+
+Definition connect `{Monad m} `(p1 : Proxy a' a unit b m r)
+  `(p2 : Proxy unit b c' c m r) : Proxy a' a c' c m r :=
+  (fun _ : unit => p1) +>> p2.
+
+Notation "x >-> y" := (connect x y) (at level 60).
+Notation "x <-< y" := (y >-> x) (at level 60).
+
 Fixpoint next `{Monad m} `(p : Producer a m r) :
   m (Either r (a * Producer a m r)) :=
   match p with

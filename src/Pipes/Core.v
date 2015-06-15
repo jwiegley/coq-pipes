@@ -47,6 +47,13 @@ Notation "x >\\ y" := (rofP x y) (at level 60).
 
 Notation "f \>\ g" := (fun a => f >\\ g a) (at level 60).
 
+Definition push `{Monad m} {a' a r} {n : nat} {default : r} :
+  a -> Proxy a' a a' a m r :=
+  let fix go n x :=
+    if n isn't S n' then Pure default else
+    (Respond ^~ (Request ^~ @go n')) x
+  in go n.
+
 (* Very strangly, if the order of [fb] and [p0] is reversed, then the right
    identity law for the push category will fail to complete with a universe
    inconsistency. *)
@@ -69,6 +76,13 @@ Fixpoint pushR `{Monad m} {a' a b' b c' c r} (fb : b -> Proxy b' b c' c m r)
 Notation "x >>~ y" := (pushR y x) (at level 60).
 
 Notation "f >~> g" := (fun a => f a >>~ g) (at level 60).
+
+Definition pull `{Monad m} {a' a r} {n : nat} {default : r} :
+  a' -> Proxy a' a a' a m r :=
+  let fix go n x :=
+    if n isn't S n' then Pure default else
+    (Request ^~ (Respond ^~ @go n')) x
+  in go n.
 
 Fixpoint pullR `{Monad m} {a' a b' b c' c r} (fb' : b' -> Proxy a' a b' b m r)
   (p0 : Proxy b' b c' c m r) {struct p0} : Proxy a' a c' c m r :=
@@ -121,27 +135,6 @@ Notation "f <// x" := (x //> f) (at level 60).
 Notation "x //< f" := (f >\\ x) (at level 60).
 Notation "f ~<< x" := (x >>~ f) (at level 60).
 Notation "x <<+ f" := (f +>> x) (at level 60).
-
-(* These definitions should be moved, and the laws that use them. *)
-
-Definition yield {a x' x m} (z : a) : Proxy x' x unit a m unit :=
-  let go : Producer' a m unit := fun _ _ => respond z in @go x' x.
-
-(* Notation "f ~> g" := (f />/ g) (at level 70). *)
-(* Notation "f <~ g" := (f ~> g) (at level 70). *)
-
-Definition await {a y' y m} (z : a) : Proxy unit a y' y m a :=
-  let go : Consumer' a m a := fun _ _ => request tt in @go y' y.
-
-Notation "x >~ y" := ((fun _ : unit => x) >\\ y) (at level 70).
-Notation "x ~< y" := (y >~ x) (at level 70).
-
-Definition connect `{Monad m} `(p1 : Proxy a' a unit b m r)
-  `(p2 : Proxy unit b c' c m r) : Proxy a' a c' c m r :=
-  (fun _ : unit => p1) +>> p2.
-
-Notation "x >-> y" := (connect x y) (at level 60).
-Notation "x <-< y" := (y >-> x) (at level 60).
 
 (****************************************************************************
  ****************************************************************************
@@ -312,14 +305,23 @@ Tactic Notation "reduce_over" constr(f) ident(g) ident(y) ident(IHx) :=
   move: (g y);
   by reduce_proxy IHx simpl.
 
-Section Push.
+Module Compromise.
 
-Definition push `{Monad m} {a' a r} {n : nat} {default : r} :
-  a -> Proxy a' a a' a m r :=
-  let fix go n x :=
-    if n isn't S n' then Pure default else
-    (Respond ^~ (Request ^~ @go n')) x
-  in go n.
+Variable n : nat.
+Hypothesis Hn : n > 0.
+
+Variable r : Type.
+Variable d : r.
+
+Hypothesis Hpush :
+  forall `{Monad m} a' a n d, @push m _ a' a r n d = @push m _ a' a r n.+1 d.
+
+Hypothesis Hpull :
+  forall `{Monad m} a' a n d, @pull m _ a' a r n d = @pull m _ a' a r n.+1 d.
+
+End Compromise.
+
+Module Push.
 
 Lemma push_request `{Monad m} :
   forall `(f : b -> Proxy b' b c' c m r)
@@ -333,19 +335,12 @@ Lemma push_m `{Monad m} :
   M g h >>~ f = M (g >~> f) h.
 Proof. move=> x; reduce_over @M g y IHx. Qed.
 
-Variable n : nat.
-Variable r : Type.
-Variable default : r.
-
-Hypothesis Hn : n > 0.
-Hypothesis Hpush :
-  forall `{Monad m} a' a n', @push m _ a' a r n' default =
-                             @push m _ a' a r n'.+1 default.
+Include Compromise.
 
 Program Instance Push_Category `{MonadLaws m} : Category := {
   ob     := Type * Type;
   hom    := fun A B => snd B -> Proxy (fst B) (snd B) (fst A) (snd A) m r;
-  c_id   := fun A => @push m _ (fst A) (snd A) r n default;
+  c_id   := fun A => @push m _ (fst A) (snd A) r n d;
   c_comp := fun _ _ _ f g => f >~> g
 }.
 Obligation 1. (* Right identity *)
@@ -362,10 +357,8 @@ Obligation 1. (* Right identity *)
 Qed.
 Obligation 2. (* Left identity *)
   extensionality z.
-  rewrite /push.
   move: Hn.
   case E: n => //= [n'] _.
-  rewrite -/push.
   move: (f z).
   reduce_proxy IHx simpl.
   congr (Request _ _).
@@ -404,7 +397,7 @@ End Push.
  * Pull Category
  *)
 
-Section Pull.
+Module Pull.
 
 Lemma pull_respond `{Monad m} :
   forall `(f : b' -> Proxy a' a b' b m r)
@@ -418,39 +411,18 @@ Lemma pull_m `{Monad m} :
   f +>> M g h = M (f >+> g) h.
 Proof. move=> x; reduce_over @M g y IHx. Qed.
 
-Definition pull `{Monad m} {a' a r} {n : nat} {default : r} :
-  a' -> Proxy a' a a' a m r :=
-  let fix go n x :=
-    if n isn't S n' then Pure default else
-    (Request ^~ (Respond ^~ @go n')) x
-  in go n.
-
-Variable n : nat.
-Variable r : Type.
-Variable default : r.
-
-Definition cat `{Monad m} {a} : Pipe a a m r :=
-  pull (n:=n) (default:=default) tt.
-
-Definition map `{Monad m} `(f : a -> b) : Pipe a b m r := forP cat (yield \o f).
-
-Hypothesis Hn : n > 0.
-Hypothesis Hpull :
-  forall n' `{Monad m} a' a, @pull m _ a' a r n' default =
-                             @pull m _ a' a r n'.+1 default.
+Include Push.
 
 Program Instance Pull_Category `{MonadLaws m} : Category := {
   ob     := Type * Type;
   hom    := fun A B => fst A -> Proxy (fst B) (snd B) (fst A) (snd A) m r;
-  c_id   := fun A => @pull m _ (fst A) (snd A) r n default;
+  c_id   := fun A => @pull m _ (fst A) (snd A) r n d;
   c_comp := fun _ _ _ f g => f >+> g
 }.
 Obligation 1. (* Right identity *)
   extensionality z.
-  rewrite /push.
   move: Hn.
   case E: n => //= [n'] _.
-  rewrite -/push.
   move: (f z).
   reduce_proxy IHx simpl.
   congr (Respond _ _).
@@ -520,42 +492,6 @@ Proof.
     congr (M _ f).
     extensionality w.
     exact: IHx.
-Qed.
-
-Theorem map_id : forall a, map (@id a) = cat.
-Proof.
-  move=> a.
-  rewrite /map /cat /yield /respond /forP.
-  move: (pull tt).
-  by reduce_proxy IHx (rewrite /bind /funcomp /=).
-Qed.
-
-Theorem map_compose `{MonadLaws m} : forall `(f : a -> b) `(g : b -> c),
-    map (g \o f) = map f >-> map g.
-Proof.
-  move=> a b f c g.
-  rewrite /map /cat /yield /funcomp.
-  move: (pull tt).
-  reduce_proxy IHx (rewrite /= /funcomp);
-  try move/functional_extensionality in IHx;
-  move: Hn;
-  case E: n => //= [n'] _.
-  - rewrite E in IHx.
-    rewrite IHx.
-    congr (Request _ _).
-    rewrite IHx /bind /funcomp /= /funcomp /connect /=.
-    congr (Respond _ _).
-    rewrite /funcomp /=.
-    extensionality t.
-    f_equal.
-    extensionality u.
-    by destruct t, u.
-  - destruct t.
-    by rewrite E -Hpull.
-  - move=> m0.
-    rewrite E in IHx.
-    rewrite IHx.
-    by congr (M _ _).
 Qed.
 
 End Pull.
