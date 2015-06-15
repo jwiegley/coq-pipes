@@ -1,0 +1,7 @@
+.*.aux
+.coq-native/
+*.d
+*.vo
+*.glob
+/Makefile.coq
+/extract

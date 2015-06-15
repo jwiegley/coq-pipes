@@ -1,73 +1,9 @@
 Require Import Hask.Prelude.
-Require Import Hask.Control.Lens.
 Require Import Hask.Control.Monad.
-Require Import Hask.Control.Monad.Trans.Free.
+Require Import Hask.Data.Functor.Identity.
+Require Import P.Pipes.Internal.
 
 Generalizable All Variables.
-
-(****************************************************************************
- *
- * Proxy
- *)
-
-Inductive Proxy (a' a b' b : Type) (m : Type -> Type) (r : Type) : Type :=
-  | Request of a' & (a  -> Proxy a' a b' b m r)
-  | Respond of b  & (b' -> Proxy a' a b' b m r)
-  | M : forall x, (x -> Proxy a' a b' b m r) -> m x -> Proxy a' a b' b m r
-  | Pure of r.
-
-Arguments Request {a' a b' b m r} _ _.
-Arguments Respond {a' a b' b m r} _ _.
-Arguments M {a' a b' b m r x} _ _.
-Arguments Pure {a' a b' b m r} _.
-
-(****************************************************************************
- *
- * Fundamental code to operate with Proxy's
- *)
-
-Definition foldProxy `{Monad m}
-  `(ka : a' -> (a  -> s) -> s)
-  `(kb : b  -> (b' -> s) -> s)
-  `(km : forall x, (x -> s) -> m x -> s)
-  `(kp : r -> s)
-  (p : Proxy a' a b' b m r) : s :=
-  let fix go p := match p with
-    | Request a' fa  => ka a' (go \o fa)
-    | Respond b  fb' => kb b  (go \o fb')
-    | M _     g  h   => km _  (go \o g) h
-    | Pure    r      => kp r
-    end in
-  go p.
-
-(* This is equivalent to [foldProxy Request Respond (fun _ => M)], but using
-   that definition makes some proofs harder. *)
-Definition Proxy_bind {a' a b' b c d} `{Monad m}
-  (f : c -> Proxy a' a b' b m d) (p0 : Proxy a' a b' b m c) :
-  Proxy a' a b' b m d :=
-  let fix go p := match p with
-    | Request a' fa  => Request a' (go \o fa)
-    | Respond b  fb' => Respond b  (go \o fb')
-    | M _     f  t   => M (go \o f) t
-    | Pure    r      => f r
-    end in
-  go p0.
-
-Instance Proxy_Functor `{Monad m} {a' a b' b} :
-  Functor (Proxy a' a b' b m) := {
-  fmap := fun _ _ f => Proxy_bind (Pure \o f)
-}.
-
-Instance Proxy_Applicative `{Monad m} {a' a b' b} :
-  Applicative (Proxy a' a b' b m) := {
-  pure := fun _ => Pure;
-  ap   := fun _ _ pf px => Proxy_bind (fmap ^~ px) pf
-}.
-
-Instance Proxy_Monad `{Monad m} {a' a b' b} :
-  Monad (Proxy a' a b' b m) := {
-  join := fun _ => Proxy_bind id
-}.
 
 Fixpoint runEffect `{Monad m} `(p : Proxy False unit unit False m r) : m r :=
   match p with
@@ -79,25 +15,6 @@ Fixpoint runEffect `{Monad m} `(p : Proxy False unit unit False m r) : m r :=
 
 Definition respond {x' x a' a m} (z : a) : Proxy x' x a' a m a' :=
   Respond z Pure.
-
-Definition request {x' x a' a m} (z : x') : Proxy x' x a' a m x :=
-  Request z Pure.
-
-Definition Effect               := Proxy False unit unit False.
-Definition Producer             := Proxy False unit unit.
-Definition Pipe (a b : Type)    := Proxy unit a unit b.
-Definition Consumer (a : Type)  := Proxy unit a unit False.
-Definition Client (a' a : Type) := Proxy a' a unit False.
-Definition Server               := Proxy False unit.
-
-Definition Effect' m r      := forall x' x y' y, Proxy x' x y' y m r.
-Definition Producer' b m r  := forall x' x, Proxy x' x unit b m r.
-Definition Consumer' a m r  := forall y' y, Proxy unit a y' y m r.
-Definition Client' a' a m r := forall y' y, Proxy a' a y' y m r.
-Definition Server' b' b m r := forall x' x, Proxy x' x b' b m r.
-
-Definition yield {a x' x m} (z : a) : Proxy x' x unit a m unit :=
-  let go : Producer' a m unit := fun _ _ => respond z in @go x' x.
 
 Definition forP `{Monad m} {x' x a' b' b c' c} (p0 : Proxy x' x b' b m a')
   (fb : b -> Proxy x' x c' c m b') : Proxy x' x c' c m a' :=
@@ -112,6 +29,9 @@ Definition forP `{Monad m} {x' x a' b' b c' c} (p0 : Proxy x' x b' b m a')
 Notation "x //> y" := (forP x y) (at level 60).
 
 Notation "f />/ g" := (fun a => f a //> g) (at level 60).
+
+Definition request {x' x a' a m} (z : x') : Proxy x' x a' a m x :=
+  Request z Pure.
 
 Definition rofP `{Monad m} {y' y a' a b' b c} (fb' : b' -> Proxy a' a y' y m b)
   (p0 : Proxy b' b y' y m c) : Proxy a' a y' y m c :=
@@ -170,12 +90,6 @@ Notation "x +>> y" := (pullR x y) (at level 60).
 
 Notation "f >+> g" := (fun a => f +>> g a) (at level 60).
 
-Definition connect `{Monad m} `(p1 : Proxy a' a unit b m r)
-  `(p2 : Proxy unit b c' c m r) : Proxy a' a c' c m r :=
-  (fun _ : unit => p1) +>> p2.
-
-Notation "x >-> y" := (connect x y) (at level 60).
-
 Definition reflect `{Monad m} `(p : Proxy a' a b' b m r) :
   Proxy b b' a a' m r :=
   let fix go p := match p with
@@ -186,20 +100,48 @@ Definition reflect `{Monad m} `(p : Proxy a' a b' b m r) :
     end in
   go p.
 
-(****************************************************************************
- *
- * General routines
- *)
+Definition Effect               := Proxy False unit unit False.
+Definition Producer             := Proxy False unit unit.
+Definition Pipe (a b : Type)    := Proxy unit a unit b.
+Definition Consumer (a : Type)  := Proxy unit a unit False.
+Definition Client (a' a : Type) := Proxy a' a unit False.
+Definition Server               := Proxy False unit.
 
-Definition each `{Monad m} {a} : seq a -> Producer a m unit := mapM_ yield.
+Definition Effect' m r          := forall x' x y' y, Proxy x' x y' y m r.
+Definition Producer' b m r      := forall x' x, Proxy x' x unit b m r.
+Definition Consumer' a m r      := forall y' y, Proxy unit a y' y m r.
+Definition Client' a' a m r     := forall y' y, Proxy a' a y' y m r.
+Definition Server' b' b m r     := forall x' x, Proxy x' x b' b m r.
 
-Fixpoint toListM `{Monad m} `(p : Producer a m unit) : m (seq a) :=
-  match p with
-  | Request v _  => False_rect _ v
-  | Respond x fu => cons x <$> toListM (fu tt)
-  | M _     f t  => t >>= (toListM \o f)
-  | Pure    _    => pure [::]
-  end.
+Notation "f \<\ g" := (g />/ f) (at level 60).
+Notation "f /</ g" := (g \>\ f) (at level 60).
+Notation "f <~< g" := (g >~> f) (at level 60).
+Notation "f <+< g" := (g >+> f) (at level 60).
+Notation "f <// x" := (x //> f) (at level 60).
+Notation "x //< f" := (f >\\ x) (at level 60).
+Notation "f ~<< x" := (x >>~ f) (at level 60).
+Notation "x <<+ f" := (f +>> x) (at level 60).
+
+(* These three definitions should be moved, and the laws that use them. *)
+
+Definition yield {a x' x m} (z : a) : Proxy x' x unit a m unit :=
+  let go : Producer' a m unit := fun _ _ => respond z in @go x' x.
+
+(* Notation "f ~> g" := (f />/ g) (at level 70). *)
+(* Notation "f <~ g" := (f ~> g) (at level 70). *)
+
+Definition await {a y' y m} (z : a) : Proxy unit a y' y m a :=
+  let go : Consumer' a m a := fun _ _ => request tt in @go y' y.
+
+Notation "x >~ y" := ((fun _ : unit => x) >\\ y) (at level 70).
+Notation "x ~< y" := (y >~ x) (at level 70).
+
+Definition connect `{Monad m} `(p1 : Proxy a' a unit b m r)
+  `(p2 : Proxy unit b c' c m r) : Proxy a' a c' c m r :=
+  (fun _ : unit => p1) +>> p2.
+
+Notation "x >-> y" := (connect x y) (at level 60).
+Notation "x <-< y" := (y >-> x) (at level 60).
 
 (****************************************************************************
  ****************************************************************************
@@ -209,45 +151,12 @@ Fixpoint toListM `{Monad m} `(p : Producer a m unit) : m (seq a) :=
  ****************************************************************************
  ****************************************************************************)
 
-Module PipesLaws.
+Module PipesLawsCore.
 
-Include MonadLaws.
+Include PipesLawsInternal.
 
 Require Import Hask.Control.Category.
 Require Import FunctionalExtensionality.
-
-Tactic Notation "reduce_proxy" ident(IHu) tactic(T) :=
-  elim=> [? ? IHu|? ? IHu|? ? IHu| ?]; T;
-  try (try move => m0; f_equal; extensionality RP_A; exact: IHu).
-
-(****************************************************************************
- *
- * Kleisli Category for Proxy a' a b' b m
- *)
-
-Section Kleisli.
-
-Global Program Instance Proxy_FunctorLaws `{MonadLaws m} {a' a b' b} :
-  FunctorLaws (Proxy a' a b' b m).
-Obligation 1. by reduce_proxy IHx simpl. Qed.
-Obligation 2. by reduce_proxy IHx simpl. Qed.
-
-Global Program Instance Proxy_ApplicativeLaws `{MonadLaws m} {a' a b' b} :
-  ApplicativeLaws (Proxy a' a b' b m).
-Obligation 1. by reduce_proxy IHx simpl. Qed.
-Obligation 2.
-  move: u; reduce_proxy IHu (rewrite /funcomp /= /funcomp).
-  move: v; reduce_proxy IHv (rewrite /funcomp /= /funcomp).
-  by move: w; reduce_proxy IHw simpl.
-Qed.
-
-Global Program Instance Proxy_MonadLaws `{MonadLaws m} {a' a b' b} :
-  MonadLaws (Proxy a' a b' b m).
-Obligation 1. by reduce_proxy IHx simpl. Qed.
-Obligation 2. by reduce_proxy IHx simpl. Qed.
-Obligation 4. by reduce_proxy IHx simpl. Qed.
-
-End Kleisli.
 
 (****************************************************************************
  *
@@ -723,67 +632,4 @@ Proof. by reduce_proxy IHx simpl. Qed.
 
 End Duals.
 
-(****************************************************************************
- *
- * General theorems about functions in the pipes library.
- *)
-
-Section GeneralTheorems.
-
-(* Looping over a single yield simplifies to function application *)
-Theorem for_yield_f `{MonadLaws m} :
-  forall `(f : b -> Proxy x' x c' c m unit) x,
-    forP (yield x) f = f x.
-Proof.
-  move=> ? ? ? ? ? f x.
-  by rewrite /yield /respond /= /bind /funcomp join_fmap_pure_x.
-Qed.
-
-(* Re-yielding every element of a stream returns the original stream *)
-Theorem for_yield `{MonadLaws m} : forall `(s : Proxy x' x unit b m unit),
-  forP s yield = s.
-Proof.
-  move=> ? ? ?.
-  by reduce_proxy IHx (rewrite /yield /respond /= /bind /= /funcomp).
-Qed.
-
-(* Nested for loops can become a sequential for loops if the inner loop
-   body ignores the outer loop variable *)
-Theorem nested_for_a `{MonadLaws m} :
-  forall `(s : Proxy x' x b' b m a')
-         `(f : b -> Proxy x' x c' c m b')
-         `(g : c -> Proxy x' x d' d m c'),
-    forP s (fun a => forP (f a) g) = forP (forP s f) g.
-Proof.
-  move=> x' x b' b a' s c' c f d' d g.
-  move: s.
-  reduce_proxy IHx simpl.
-  rewrite respond_distrib.
-  move/functional_extensionality in IHx.
-  by rewrite -IHx.
-Qed.
-
-Theorem nested_for_b `{MonadLaws m} :
-  forall `(s : Proxy x' x b' b m a')
-         `(f : b -> Proxy x' x c' c m b')
-         `(g : c -> Proxy x' x d' d m c'),
-    forP (forP s f) g = forP s (f />/ g).
-Proof.
-  move=> x' x b' b a' s c' c f d' d g.
-  move: s.
-  reduce_proxy IHx simpl.
-  rewrite respond_distrib.
-  move/functional_extensionality in IHx.
-  by rewrite IHx.
-Qed.
-
-Theorem toListM_each_id : forall a, toListM \o each =1 pure (a:=seq a).
-Proof.
-  move=> a xs.
-  elim: xs => //= [x xs IHxs].
-  by rewrite IHxs.
-Qed.
-
-End GeneralTheorems.
-
-End PipesLaws.
+End PipesLawsCore.

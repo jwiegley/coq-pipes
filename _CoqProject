@@ -1,0 +1,5 @@
+-R Hask/src Hask -R src P
+src/Pipes.v
+src/Pipes/Core.v
+src/Pipes/Internal.v
+src/Pipes/Prelude.v
