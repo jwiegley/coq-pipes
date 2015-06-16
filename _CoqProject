@@ -3,3 +3,4 @@ src/Pipes.v
 src/Pipes/Core.v
 src/Pipes/Internal.v
 src/Pipes/Prelude.v
+src/Pipes/Extras.v
