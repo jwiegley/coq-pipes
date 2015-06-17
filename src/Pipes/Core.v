@@ -156,7 +156,41 @@ Require Import FunctionalExtensionality.
  * Respond Category
  *)
 
+Ltac applying_monad_laws IHx X :=
+  rewrite ?/kleisli_compose;
+  move: X;
+  reduce_proxy IHx
+    (first [ apply functional_extensionality in IHx;
+             by rewrite /= /funcomp IHx /bind /funcomp
+               -join_fmap_fmap_x fmap_comp_x
+               -join_fmap_join_x fmap_comp_x
+           | rewrite /bind /= ]).
+
+Ltac applying_theorem IHx X H :=
+  rewrite ?/kleisli_compose;
+  move: X;
+  reduce_proxy IHx
+    (first [ apply functional_extensionality in IHx;
+             by rewrite /= /funcomp -IHx H
+           | rewrite /= ]).
+
+Ltac mere_extensionality IHx x f :=
+  extensionality x;
+  move: (f x);
+  reduce_proxy IHx (rewrite /= /bind /=).
+
 Section Respond.
+
+Theorem respond_distrib_old `{MonadLaws m} :
+  forall (x' x a' a b' b c' c r : Type)
+         (f : a  -> Proxy x' x b' b m a')
+         (g : a' -> Proxy x' x b' b m r)
+         (h : b  -> Proxy x' x c' c m b'),
+  (f >=> g) />/ h =1 (f />/ h) >=> (g />/ h).
+Proof.
+  move=> ? ? ? ? ? ? ? ? ? f ? ? x.
+  by applying_monad_laws IHx (f x).
+Qed.
 
 Theorem respond_distrib `{MonadLaws m} :
   forall (x' x a' a b' b c' c r : Type)
@@ -166,21 +200,7 @@ Theorem respond_distrib `{MonadLaws m} :
   (f >=> g) />/ h =1 (f />/ h) >=> (g />/ h).
 Proof.
   move=> ? ? ? ? ? ? ? ? ? f ? ? x.
-  rewrite /kleisli_compose.
-  elim: (f x) => // [? ? IHx|? ? IHx|? ? IHx].
-  - rewrite /bind /=.
-    f_equal.
-    extensionality a1.
-    exact: IHx.
-  - apply functional_extensionality in IHx.
-    by rewrite /= /funcomp IHx /bind /funcomp
-               -join_fmap_fmap_x fmap_comp_x
-               -join_fmap_join_x fmap_comp_x.
-  - move=> m0.
-    rewrite /bind /=.
-    f_equal.
-    extensionality y.
-    exact: IHx.
+  by applying_monad_laws IHx (f x).
 Qed.
 
 Program Instance Respond_Category {x' x} `{MonadLaws m} : Category := {
@@ -194,25 +214,11 @@ Obligation 1. (* Right identity *)
   exact: join_fmap_pure_x.
 Qed.
 Obligation 2. (* Left identity *)
-  extensionality z.
-  move: (f z).
-  by reduce_proxy IHx (rewrite /= /bind /funcomp /=).
+  by mere_extensionality IHx z f.
 Qed.
 Obligation 3. (* Associativity *)
   extensionality z.
-  elim: (h z) => // [? ? IHx|? ? IHx|? ? IHx].
-  - rewrite /=.
-    f_equal.
-    extensionality a1.
-    exact: IHx.
-  - apply functional_extensionality in IHx.
-    by rewrite /= /funcomp -IHx respond_distrib.
-  - move=> m0.
-    rewrite /=.
-    f_equal.
-    rewrite /funcomp.
-    extensionality y.
-    exact: IHx.
+  by applying_theorem IHx (h z) respond_distrib.
 Qed.
 
 Corollary respond_zero `{MonadLaws m} : forall `(f : c -> Proxy a' a b' b m r),
@@ -236,21 +242,7 @@ Theorem request_distrib `{MonadLaws m} :
   h \>\ (f >=> g) =1 (h \>\ f) >=> (h \>\ g).
 Proof.
   move=> ? ? ? ? ? ? ? ? ? f ? ? x.
-  rewrite /kleisli_compose.
-  elim: (f x) => // [? ? IHx|? ? IHx|? ? IHx].
-  - apply functional_extensionality in IHx.
-    by rewrite /= /funcomp IHx /bind /funcomp
-               -join_fmap_fmap_x fmap_comp_x
-               -join_fmap_join_x fmap_comp_x.
-  - rewrite /bind /=.
-    f_equal.
-    extensionality a1.
-    exact: IHx.
-  - move=> m0.
-    rewrite /bind /=.
-    f_equal.
-    extensionality y.
-    exact: IHx.
+  by applying_monad_laws IHx (f x).
 Qed.
 
 Program Instance Request_Category {x' x} `{MonadLaws m} : Category := {
@@ -260,30 +252,14 @@ Program Instance Request_Category {x' x} `{MonadLaws m} : Category := {
   c_comp := fun _ _ _ f g => f \>\ g
 }.
 Obligation 1. (* Right identity *)
-  extensionality z.
-  move: (f z).
-  by reduce_proxy IHx (rewrite /= /bind /funcomp /=).
+  by mere_extensionality IHx z f.
 Qed.
 Obligation 2. (* Left identity *)
-  extensionality z.
-  move: (f z).
-  by reduce_proxy IHx (rewrite /= /bind /funcomp /=).
+  by mere_extensionality IHx z f.
 Qed.
 Obligation 3. (* Associativity *)
   extensionality z.
-  elim: (h z) => // [y p IHx|? ? IHx|? ? IHx].
-  - apply functional_extensionality in IHx.
-    by rewrite /= /funcomp -IHx request_distrib.
-  - rewrite /=.
-    f_equal.
-    extensionality a1.
-    exact: IHx.
-  - move=> m0.
-    rewrite /=.
-    f_equal.
-    rewrite /funcomp.
-    extensionality y.
-    exact: IHx.
+  by applying_theorem IHx (h z) request_distrib.
 Qed.
 
 Corollary request_zero `{MonadLaws m} : forall `(f : c -> Proxy a' a b' b m r),
@@ -299,11 +275,8 @@ End Request.
 
 Tactic Notation "reduce_over" constr(f) ident(g) ident(y) ident(IHx) :=
   move=> ? ? ? ? ? ? ? ? g ?;
-  rewrite /= /funcomp;
   congr (f _ _);
-  extensionality y;
-  move: (g y);
-  by reduce_proxy IHx simpl.
+  by mere_extensionality IHx y g.
 
 Module Compromise.
 
@@ -313,11 +286,15 @@ Hypothesis Hn : n > 0.
 Variable r : Type.
 Variable d : r.
 
-Hypothesis Hpush :
-  forall `{Monad m} a' a n d, @push m _ a' a r n d = @push m _ a' a r n.+1 d.
+Hypothesis Hpush : forall `{Monad m} a' a n d,
+  @push m _ a' a r n d = @push m _ a' a r n.+1 d.
 
-Hypothesis Hpull :
-  forall `{Monad m} a' a n d, @pull m _ a' a r n d = @pull m _ a' a r n.+1 d.
+Hypothesis Hpull : forall `{Monad m} a' a n d,
+  @pull m _ a' a r n d = @pull m _ a' a r n.+1 d.
+
+Global Ltac assume_infinity :=
+  move: Hn;
+  case E: n => // [n'] _.
 
 End Compromise.
 
@@ -327,13 +304,13 @@ Lemma push_request `{Monad m} :
   forall `(f : b -> Proxy b' b c' c m r)
          `(g : a -> Proxy a' a b' b m r) x,
   Request x g >>~ f = Request x (g >~> f).
-Proof. reduce_over @Request g y IHx. Qed.
+Proof. by reduce_over @Request g y IHx. Qed.
 
 Lemma push_m `{Monad m} :
   forall `(f : b -> Proxy b' b c' c m r)
          `(g : x -> Proxy a' a b' b m r) (h : m x),
   M g h >>~ f = M (g >~> f) h.
-Proof. move=> x; reduce_over @M g y IHx. Qed.
+Proof. by move=> x; reduce_over @M g y IHx. Qed.
 
 Include Compromise.
 
@@ -344,50 +321,40 @@ Program Instance Push_Category `{MonadLaws m} : Category := {
   c_comp := fun _ _ _ f g => f >~> g
 }.
 Obligation 1. (* Right identity *)
-  extensionality z.
-  move: (f z).
-  reduce_proxy IHx simpl.
-  move: Hn.
-  case E: n => // [n'] _.
+  mere_extensionality IHx z f.
+  assume_infinity.
   congr (Respond _ _).
-  rewrite /funcomp -/push Hpush.
+  rewrite -/push Hpush.
   rewrite E in IHx.
   move/functional_extensionality in IHx.
   exact: IHx.
 Qed.
 Obligation 2. (* Left identity *)
   extensionality z.
-  move: Hn.
-  case E: n => //= [n'] _.
+  assume_infinity => /=.
   move: (f z).
   reduce_proxy IHx simpl.
   congr (Request _ _).
-  rewrite /flip /funcomp Hpush.
+  rewrite /flip Hpush.
   extensionality w.
   by rewrite -IHx.
 Qed.
 Obligation 3. (* Associativity *)
-  simpl in *.
   extensionality z.
-  move: g h.
-  elim: (f z) => // [? ? IHx|b fb' IHx|? ? IHx] g h.
-  - rewrite 3!push_request.
-    congr (Request _ _).
-    extensionality w.
-    exact: IHx.
-  - rewrite /=.
-    move: h.
-    move: (g b).
-    reduce_proxy IHy (rewrite /= /flip /funcomp /=) => h.
-    + exact: IHx.
-    + move: (h _).
-      reduce_proxy IHz (rewrite /= /flip /funcomp /=).
-      exact: IHy.
-  - move=> m0.
-    rewrite 3!push_m.
-    congr (M _ _).
-    extensionality w.
-    exact: IHx.
+  move: (f z) g h.
+  reduce_proxy IHx
+    (move=> g h;
+     first [ rewrite 3!push_request;
+             congr (Request _ _)
+           | rewrite 3!push_m;
+             congr (M _ _)
+           | rewrite /= ]).
+  move: (g _) h.
+  reduce_proxy IHy (rewrite /= /flip /=) => h.
+  - exact: IHx.
+  - move: (h _).
+    reduce_proxy IHz (rewrite /= /flip /=).
+    exact: IHy.
 Qed.
 
 End Push.
@@ -421,12 +388,11 @@ Program Instance Pull_Category `{MonadLaws m} : Category := {
 }.
 Obligation 1. (* Right identity *)
   extensionality z.
-  move: Hn.
-  case E: n => //= [n'] _.
+  assume_infinity => /=.
   move: (f z).
   reduce_proxy IHx simpl.
   congr (Respond _ _).
-  rewrite /flip /funcomp Hpull.
+  rewrite /flip Hpull.
   extensionality w.
   by rewrite -IHx.
 Qed.
@@ -434,36 +400,30 @@ Obligation 2. (* Left identity *)
   extensionality z.
   move: (f z).
   reduce_proxy IHx simpl.
-  move: Hn.
-  case E: n => // [n'] _.
+  assume_infinity.
   congr (Request _ _).
-  rewrite /funcomp -/pull Hpull.
+  rewrite -/pull Hpull.
   rewrite E in IHx.
   move/functional_extensionality in IHx.
   exact: IHx.
 Qed.
 Obligation 3. (* Associativity *)
-  simpl in *.
   extensionality z.
-  move: f g.
-  elim: (h z) => // [a' fa IHx|? ? IHx|? ? IHx] f g.
-  - rewrite /=.
-    move: f.
-    move: (g a').
-    reduce_proxy IHy (rewrite /= /flip /funcomp /=) => f.
-    + move: (f _).
-      reduce_proxy IHz (rewrite /= /flip /funcomp /=).
-      exact: IHy.
-    + exact: IHx.
-  - rewrite 3!pull_respond.
-    congr (Respond _ _).
-    extensionality w.
-    exact: IHx.
-  - move=> m0.
-    rewrite 3!pull_m.
-    congr (M _ _).
-    extensionality w.
-    exact: IHx.
+  move: (h z) f g.
+  reduce_proxy IHx
+    (move=> f g;
+     first [ rewrite 3!pull_request;
+             congr (Respond _ _)
+           | rewrite 3!push_m;
+             congr (M _ _)
+           | rewrite /= ]).
+  rewrite /=.
+  move: (g _) f.
+  reduce_proxy IHy (rewrite /= /flip /=) => f.
+  - move: (f _).
+    reduce_proxy IHz (rewrite /= /flip /=).
+    exact: IHy.
+  - exact: IHx.
 Qed.
 
 Theorem push_pull_assoc `{MonadLaws m} :
@@ -472,25 +432,19 @@ Theorem push_pull_assoc `{MonadLaws m} :
           (h : c  -> Proxy c' c b' b m r),
   (f >+> g) >~> h =1 f >+> (g >~> h).
 Proof.
-  move=> ? ? ? ? f ? ? g h a.
-  move: f h.
-  elim: (g a) => // [a' fa IHx|b fb' IHx|? ? IHx] => f h.
-  - rewrite push_request.
-    rewrite /=.
-    move: h.
-    move: (f a').
-    reduce_proxy IHy (rewrite /= /flip /funcomp /=) => h.
+  move=> ? ? ? ? f ? ? g h ?.
+  move: (g _) f h.
+  reduce_proxy IHx
+    (move=> f h;
+     try (rewrite pull_m push_m push_m pull_m;
+          congr (M _ _))) => //.
+  - rewrite push_request /=.
+    move: (f _) h.
+    reduce_proxy IHy simpl => h.
     exact: IHx.
-  - rewrite pull_respond.
-    rewrite /=.
-    move: f.
-    move: (h b).
-    reduce_proxy IHy (rewrite /= /flip /funcomp /=) => f.
-    exact: IHx.
-  - move=> m0.
-    rewrite pull_m push_m push_m pull_m.
-    congr (M _ f).
-    extensionality w.
+  - rewrite pull_respond /=.
+    move: (h _) f.
+    reduce_proxy IHy simpl => f.
     exact: IHx.
 Qed.
 
@@ -515,8 +469,8 @@ Theorem reflect_distrib :
          (g : r -> Proxy a' a b' b m r) (x : a),
     reflect (f x >>= g) = reflect (f x) >>= (reflect \o g).
 Proof.
-  move=> f g x.
-  move: (f x).
+  move=> f ? ?.
+  move: (f _).
   by reduce_proxy IHx (rewrite /bind /=).
 Qed.
 
@@ -525,33 +479,29 @@ Theorem request_comp :
          (g : a -> Proxy a  r b' b m r),
     reflect \o (f \>\ g) =1 (reflect \o g) />/ (reflect \o f).
 Proof.
-  move=> f g x.
-  rewrite /=.
-  move: (g x).
-  reduce_proxy IHx simpl.
-  move/functional_extensionality in IHx.
-  by rewrite /funcomp -IHx reflect_distrib.
+  move=> ? g x /=.
+  by applying_theorem IHx (g x) reflect_distrib.
 Qed.
 
 Theorem respond_id : reflect \o respond =1 @request a' a b' b m.
-Proof. move=> x; by congr (Request _ _). Qed.
+Proof. by move=> ?; congr (Request _ _). Qed.
 
 Theorem respond_comp :
   forall (f : a -> Proxy a' a b' b m r)
          (g : b -> Proxy a' a b' b m b'),
     reflect \o (f />/ g) =1 (reflect \o g) \>\ (reflect \o f).
 Proof.
-  move=> f g x.
-  rewrite /=.
-  move: (f x).
-  reduce_proxy IHx simpl.
-  move/functional_extensionality in IHx.
-  (* jww (2015-06-09): We should be able to use [reflect_distrib] here, but
-     the types are not general enough, which means that the types of some of
-     these theorems are probably incorrect. *)
-  rewrite /funcomp -IHx.
-  move: (g _).
-  by reduce_proxy IHy (rewrite /bind /=).
+  move=> f g ? /=.
+  move: (f _).
+  by reduce_proxy IHx
+    (first [ move/functional_extensionality in IHx;
+             rewrite /= /funcomp -IHx;
+             (* jww (2015-06-09): We should be able to use [reflect_distrib]
+                here, but the types are not general enough, which means the
+                types of some of these theorems may be insufficient. *)
+             move: (g _);
+             reduce_proxy IHy (rewrite /bind /=)
+           | rewrite /= ]).
 Qed.
 
 Corollary distributivity :

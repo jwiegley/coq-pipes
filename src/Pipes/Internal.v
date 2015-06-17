@@ -53,8 +53,7 @@ Definition Proxy_bind {a' a b' b c d} `{Monad m}
   go p0.
 
 (* The proofs of these laws are below. *)
-Instance Proxy_Functor `{Monad m} {a' a b' b} :
-  Functor (Proxy a' a b' b m) := {
+Instance Proxy_Functor `{Monad m} {a' a b' b} : Functor (Proxy a' a b' b m) := {
   fmap := fun _ _ f => Proxy_bind (Pure \o f)
 }.
 
@@ -76,8 +75,8 @@ Include MonadLaws.
 Require Import FunctionalExtensionality.
 
 Tactic Notation "reduce_proxy" ident(IHu) tactic(T) :=
-  elim=> [? ? IHu|? ? IHu|? ? IHu| ?]; T;
-  try (try move => m0; f_equal; extensionality RP_A; exact: IHu).
+  elim=> [? ? IHu|? ? IHu|? ? IHu ?| ?]; try T;
+  try (f_equal; extensionality RP_A; exact: IHu).
 
 (****************************************************************************
  *

@@ -70,7 +70,7 @@ Theorem for_yield_f `{MonadLaws m} :
   forall `(f : b -> Proxy x' x c' c m unit) x,
     forP (yield x) f = f x.
 Proof.
-  move=> ? ? ? ? ? f x.
+  move=> *.
   by rewrite /yield /respond /= /bind /funcomp join_fmap_pure_x.
 Qed.
 
@@ -79,7 +79,7 @@ Theorem for_yield `{MonadLaws m} : forall `(s : Proxy x' x unit b m unit),
   forP s yield = s.
 Proof.
   move=> ? ? ?.
-  by reduce_proxy IHx (rewrite /yield /respond /= /bind /= /funcomp).
+  by reduce_proxy IHx (rewrite /yield /respond /= /bind /=).
 Qed.
 
 (* Nested for loops can become a sequential for loops if the inner loop
@@ -90,7 +90,7 @@ Theorem nested_for_a `{MonadLaws m} :
          `(g : c -> Proxy x' x d' d m c'),
     forP s (fun a => forP (f a) g) = forP (forP s f) g.
 Proof.
-  move=> x' x b' b a' s c' c f d' d g.
+  move=> ? ? ? ? ? s *.
   move: s.
   reduce_proxy IHx simpl.
   rewrite respond_distrib.
@@ -104,7 +104,7 @@ Theorem nested_for_b `{MonadLaws m} :
          `(g : c -> Proxy x' x d' d m c'),
     forP (forP s f) g = forP s (f />/ g).
 Proof.
-  move=> x' x b' b a' s c' c f d' d g.
+  move=> ? ? ? ? ? s *.
   move: s.
   reduce_proxy IHx simpl.
   rewrite respond_distrib.
