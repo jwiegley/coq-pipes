@@ -12,7 +12,7 @@ Definition yield {a x' x m} (z : a) : Proxy x' x unit a m unit :=
 Notation "f ~> g" := (f />/ g) (at level 70).
 Notation "f <~ g" := (f ~> g) (at level 70).
 
-Definition await {a y' y m} (z : a) : Proxy unit a y' y m a :=
+Definition await {a y' y m} : Proxy unit a y' y m a :=
   let go : Consumer' a m a := fun _ _ => request tt in @go y' y.
 
 Notation "x >~ y" := ((fun _ : unit => x) >\\ y) (at level 70).
@@ -47,12 +47,15 @@ Fixpoint next `{Monad m} `(p : Producer a m r) :
   | Pure    r    => return_ $ Left r
   end.
 
-Definition each `{Monad m} {a} : seq a -> Producer a m unit := mapM_ yield.
+Definition each `{Monad m} {a} (xs : seq a) : Producer' a m unit :=
+  fun _ _ => mapM_ yield xs.
+Arguments each {m _ a} xs {_ _}.
 
 Definition discard `{Monad m} {a} : a -> m unit := fun _ => return_ tt.
 
 Definition every `{Monad m} `(xs : seq a) : Producer' a m unit :=
   fun _ _ => foldM (const yield) tt xs.
+Arguments every {m _ a} xs {_ _}.
 
 (****************************************************************************
  *
