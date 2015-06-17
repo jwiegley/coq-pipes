@@ -36,46 +36,40 @@ Require Import FunctionalExtensionality.
 Theorem map_id : forall a,
   map (n:=n) (d:=d) (@id a) = cat (n:=n) (d:=d).
 Proof.
-  move=> a.
+  move=> ?.
   rewrite /map /cat /yield /respond /forP.
   move: (pull tt).
-  by reduce_proxy IHx (rewrite /bind /funcomp /=).
+  by reduce_proxy IHx (rewrite /bind /=).
 Qed.
 
 Theorem map_compose `{MonadLaws m} : forall `(f : a -> b) `(g : b -> c),
     map (n:=n) (d:=d) (g \o f)
       = map (n:=n) (d:=d) f >-> map (n:=n) (d:=d) g.
 Proof.
-  move=> a b f c g.
+  move=> *.
   rewrite /map /cat /yield /funcomp.
   move: (pull tt).
   reduce_proxy IHx (rewrite /= /funcomp);
   try move/functional_extensionality in IHx;
-  move: Hn;
-  case E: n => //= [n'] _.
+  assume_infinity.
   - rewrite E in IHx.
     rewrite IHx.
     congr (Request _ _).
-    rewrite IHx /bind /funcomp /= /funcomp /connect /=.
+    rewrite IHx /bind /= /connect /=.
     congr (Respond _ _).
     rewrite /funcomp /=.
     extensionality t.
-    f_equal.
+    congr (_ <<+ _).
     extensionality u.
-    by destruct t, u.
-  - destruct t.
+    by case: t; case: u.
+  - case: t.
     by rewrite E -Hpull.
-  - move=> m0.
-    rewrite E in IHx.
+  - rewrite E in IHx.
     rewrite IHx.
     by congr (M _ _).
 Qed.
 
 Theorem toListM_each_id : forall a, toListM \o each =1 pure (a:=seq a).
-Proof.
-  move=> a xs.
-  elim: xs => //= [x xs IHxs].
-  by rewrite IHxs.
-Qed.
+Proof. by move=> ?; elim=> //= [? ? ->]. Qed.
 
 End PipesLawsPrelude.
