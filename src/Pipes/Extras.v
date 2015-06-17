@@ -4,6 +4,18 @@ Require Import P.Pipes.
 
 Generalizable All Variables.
 
+(* [Sproxy] is a Boehm-Berarducci encoding of pipes' [Proxy] type. In Haskell
+   it could be optimized further as follows:
+
+     forall s.
+          (a' -> (a  -> m s) -> m s)
+       -> (b  -> (b' -> m s) -> m s)
+       -> (r -> m s)
+       -> m s)
+
+   However, this will not work in Coq until use of Universe Polymorphism is
+   applied throughout the coq-haskell library. *)
+
 Definition SProxy (a' a b' b : Type) (m : Type -> Type) (r : Type) : Type :=
   forall s : Type,
        (a' -> (a  -> s) -> s)           (* SRequest *)
@@ -49,8 +61,8 @@ Axiom f_const : forall `(f : a -> (b -> s) -> s) (x : a) (y : s),
 Definition const_f `(f : (b -> s) -> a -> s) (x : a) (y : s) :
   f (const y) x = y := f_const (flip f) x y.
 
-(* As 'pur' is the only function that can produce an 's', it must be equal to
-   reducing the SProxy. *)
+(* As [pur] is the only function that can produce an [s], it must be equal to
+   reducing the [SProxy]. *)
 Axiom SProxy_parametricity : forall `(sp : SProxy a' a b' b m r) (s : Type)
   (req : a' -> (a  -> s) -> s)
   (res : b  -> (b' -> s) -> s)
@@ -75,6 +87,7 @@ Proof.
   exact: SProxy_parametricity.
 Qed.
 
+(* Induction hypothesis for the [SProxy] type. *)
 Theorem sproxy_ind :
   forall (a' a b' b : Type) (m : Type -> Type) (r : Type)
          (P : SProxy a' a b' b m r -> Prop),
