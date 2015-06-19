@@ -63,57 +63,51 @@ filterM predicate = for cat $ \a -> do
 Definition take `{Monad m} (n' : nat) {a} : Pipe a a m unit :=
   replicateM_ n' (await >>= yield).
 
+Fixpoint takeWhile `{Monad} `(p : a -> bool) {n : nat} {d : r} :
+  Pipe a a m unit :=
+  if n isn't S n' then Pure tt else
+  a <-- await ;;
+  if p a
+  then yield a >> takeWhile p (n:=n') (d:=d)
+  else return_ tt.
+
+Definition drop `{Monad m} (n : nat) {a} : Pipe a a m r :=
+  replicateM_ n (await >> return_ tt) ;;
+  cat (n:=n) (d:=d).
+
+Fixpoint dropWhile `{Monad m} `(p : a -> bool) {n : nat} {d : r} :
+  Pipe a a m r :=
+  if n isn't S n' then Pure d else
+  a <-- await ;;
+  if p a
+  then dropWhile p (n:=n') (d:=d)
+  else yield a >> cat (n:=n) (d:=d).
+
+Definition concat `{Monad m} {a} : Pipe (seq a) a m r :=
+  forP (cat (n:=n) (d:=d)) (fun xs => each xs (x':=unit) (x:=seq a)).
+
+Fixpoint findIndices `{Monad m} `(p : a -> bool) : Pipe a nat m r :=
+  let fix loop i n :=
+    if n isn't S n' then Pure d else
+    a <-- await ;;
+    when (p a) (yield i) ;;
+    loop (i + 1) n' in
+  loop 0 n.
+
+Definition elemIndices `{Monad m} {a : eqType} (x : a) : Pipe a nat m r :=
+  findIndices (eq_op x).
+
+Definition scan `{Monad m} `(step : x -> a -> x) (begin : x) `(done : x -> b) :
+  Pipe a b m r :=
+  let fix loop x n :=
+    if n isn't S n' then Pure d else
+    yield (done x) ;;
+    a <-- await ;;
+    let x' := step x a in
+    loop x' n' in
+  loop begin n.
+
 (*
-takeWhile :: Monad m => (a -> Bool) -> Pipe a a m ()
-takeWhile predicate = go
-  where
-    go = do
-        a <- await
-        if (predicate a)
-            then do
-                yield a
-                go
-            else return ()
-
-drop :: Monad m => Int -> Pipe a a m r
-drop n = do
-    replicateM_ n await
-    cat
-
-dropWhile :: Monad m => (a -> Bool) -> Pipe a a m r
-dropWhile predicate = go
-  where
-    go = do
-        a <- await
-        if (predicate a)
-            then go
-            else do
-                yield a
-                cat
-
-concat :: (Monad m, Foldable f) => Pipe (f a) a m r
-concat = for cat each
-
-elemIndices :: (Monad m, Eq a) => a -> Pipe a Int m r
-elemIndices a = findIndices (a ==)
-
-findIndices :: Monad m => (a -> Bool) -> Pipe a Int m r
-findIndices predicate = loop 0
-  where
-    loop n = do
-        a <- await
-        when (predicate a) (yield n)
-        loop $! n + 1
-
-scan :: Monad m => (x -> a -> x) -> x -> (x -> b) -> Pipe a b m r
-scan step begin done = loop begin
-  where
-    loop x = do
-        yield (done x)
-        a <- await
-        let x' = step x a
-        loop $! x'
-
 scanM :: Monad m => (x -> a -> m x) -> m x -> (x -> m b) -> Pipe a b m r
 scanM step begin done = do
     x <- lift begin
@@ -130,150 +124,164 @@ chain :: Monad m => (a -> m ()) -> Pipe a a m r
 chain f = for cat $ \a -> do
     lift (f a)
     yield a
+*)
 
-fold :: Monad m => (x -> a -> x) -> x -> (x -> b) -> Producer a m () -> m b
-fold step begin done p0 = loop p0 begin
-  where
-    loop p x = case p of
-        Request v  _  -> closed v
-        Respond a  fu -> loop (fu ()) $! step x a
-        M          m  -> m >>= \p' -> loop p' x
-        Pure    _     -> return (done x)
+Definition fold `{Monad m} `(step : x -> a -> x) (begin : x) `(done : x -> b)
+  (p0 : Producer a m unit) : m b :=
+  let fix loop p x := match p with
+    | Request v  _  => False_rect _ v
+    | Respond a  fu => loop (fu tt) (step x a)
+    | M _     g  h  => h >>= fun p' => loop (g p') x
+    | Pure    _     => return_ (done x)
+    end in
+  loop p0 begin.
 
-fold' :: Monad m => (x -> a -> x) -> x -> (x -> b) -> Producer a m r -> m (b, r)
-fold' step begin done p0 = loop p0 begin
-  where
-    loop p x = case p of
-        Request v  _  -> closed v
-        Respond a  fu -> loop (fu ()) $! step x a
-        M          m  -> m >>= \p' -> loop p' x
-        Pure    r     -> return (done x, r)
+Definition fold' `{Monad m} `(step : x -> a -> x) (begin : x) `(done : x -> b)
+  (p0 : Producer a m r) : m (b * r)%type :=
+  let fix loop p x := match p with
+    | Request v  _  => False_rect _ v
+    | Respond a  fu => loop (fu tt) (step x a)
+    | M _     g  h  => h >>= fun p' => loop (g p') x
+    | Pure    r     => return_ (done x, r)
+    end in
+  loop p0 begin.
 
-foldM
-    :: Monad m
-    => (x -> a -> m x) -> m x -> (x -> m b) -> Producer a m () -> m b
-foldM step begin done p0 = do
-    x0 <- begin
-    loop p0 x0
-  where
-    loop p x = case p of
-        Request v  _  -> closed v
-        Respond a  fu -> do
-            x' <- step x a
-            loop (fu ()) $! x'
-        M          m  -> m >>= \p' -> loop p' x
-        Pure    _     -> done x
+Definition foldM `{Monad m}
+  `(step : x -> a -> m x) (begin : m x) `(done : x -> m b)
+  (p0 : Producer a m unit) : m b :=
+  let fix loop p x := match p with
+    | Request v  _  => False_rect _ v
+    | Respond a  fu =>
+          x' <-- step x a ;;
+          loop (fu tt) x'
+    | M _     g  h  => h >>= fun p' => loop (g p') x
+    | Pure    _     => done x
+    end in
+  x0 <-- begin ;;
+  loop p0 x0.
 
-foldM'
-    :: Monad m
-    => (x -> a -> m x) -> m x -> (x -> m b) -> Producer a m r -> m (b, r)
-foldM' step begin done p0 = do
-    x0 <- begin
-    loop p0 x0
-  where
-    loop p x = case p of
-        Request v  _  -> closed v
-        Respond a  fu -> do
-            x' <- step x a
-            loop (fu ()) $! x'
-        M          m  -> m >>= \p' -> loop p' x
-        Pure    r     -> do
-            b <- done x
-            return (b, r)
+Definition foldM' `{Monad m}
+  `(step : x -> a -> m x) (begin : m x) `(done : x -> m b)
+  (p0 : Producer a m r) : m (b * r)%type :=
+  let fix loop p x := match p with
+    | Request v  _  => False_rect _ v
+    | Respond a  fu =>
+          x' <-- step x a ;;
+          loop (fu tt) x'
+    | M _     g  h  => h >>= fun p' => loop (g p') x
+    | Pure    r     =>
+          b <-- done x ;;
+          return_ (b, r)
+    end in
+  x0 <-- begin ;;
+  loop p0 x0.
 
-all :: Monad m => (a -> Bool) -> Producer a m () -> m Bool
-all predicate p = null $ p >-> filter (\a -> not (predicate a))
+Definition null `{Monad m} `(p : Producer a m unit) : m bool :=
+  x <-- next p ;;
+  return_ $ match x with
+    | Left  _ => true
+    | Right _ => false
+    end.
 
-any :: Monad m => (a -> Bool) -> Producer a m () -> m Bool
-any predicate p = liftM not $ null (p >-> filter predicate)
+Definition all `{Monad m} `(p : a -> bool) (p0 : Producer a m unit) : m bool :=
+  null $ p0 >-> (filter (fun a => ~~ (p a)) >> return_ tt).
 
-and :: Monad m => Producer Bool m () -> m Bool
-and = all id
+Definition any `{Monad m} `(p : a -> bool) (p0 : Producer a m unit) : m bool :=
+  fmap negb $ null $ p0 >-> (filter p >> return_ tt).
 
-or :: Monad m => Producer Bool m () -> m Bool
-or = any id
+Definition and `{Monad m} : Producer bool m unit -> m bool := all id.
 
-elem :: (Monad m, Eq a) => a -> Producer a m () -> m Bool
-elem a = any (a ==)
+Definition or `{Monad m} : Producer bool m unit -> m bool := any id.
 
-notElem :: (Monad m, Eq a) => a -> Producer a m () -> m Bool
-notElem a = all (a /=)
+Definition elem `{Monad m} {a : eqType} (x : a) : Producer a m unit -> m bool :=
+  any (eq_op x).
 
-find :: Monad m => (a -> Bool) -> Producer a m () -> m (Maybe a)
-find predicate p = head (p >-> filter predicate)
+Definition notElem `{Monad m} {a : eqType} (x : a) :
+  Producer a m unit -> m bool :=
+  all (negb \o eq_op x).
 
-findIndex :: Monad m => (a -> Bool) -> Producer a m () -> m (Maybe Int)
-findIndex predicate p = head (p >-> findIndices predicate)
+Definition head `{Monad m} `(p : Producer a m unit) : m (Maybe a) :=
+  x <-- next p ;;
+  return_ $ match x with
+    | Left   _     => Nothing
+    | Right (a, _) => Just a
+    end.
 
-head :: Monad m => Producer a m () -> m (Maybe a)
-head p = do
-    x <- next p
-    return $ case x of
-        Left   _     -> Nothing
-        Right (a, _) -> Just a
+Definition find `{Monad m} `(p : a -> bool) (p0 : Producer a m unit) :
+  m (Maybe a) :=
+  head (p0 >-> (filter p >> return_ tt)).
 
-index :: Monad m => Int -> Producer a m () -> m (Maybe a)
-index n p = head (p >-> drop n)
+Definition findIndex `{Monad m} `(p : a -> bool) (p0 : Producer a m unit) :
+  m (Maybe nat) :=
+  head (p0 >-> (findIndices p >> return_ tt)).
 
-last :: Monad m => Producer a m () -> m (Maybe a)
-last p0 = do
-    x <- next p0
-    case x of
-        Left   _      -> return Nothing
-        Right (a, p') -> loop a p'
-  where
-    loop a p = do
-        x <- next p
-        case x of
-            Left   _       -> return (Just a)
-            Right (a', p') -> loop a' p'
+Definition index `{Monad m} (n : nat) `(p : Producer a m unit) : m (Maybe a) :=
+  head (p >-> (drop n >> return_ tt)).
 
-length :: Monad m => Producer a m () -> m Int
-length = fold (\n _ -> n + 1) 0 id
+Definition last `{Monad m} `(p0 : Producer a m unit) : m (Maybe a) :=
+  let fix loop z p n : m (Maybe a) :=
+    if n isn't S n' then return_ Nothing else
+    x <-- next p ;;
+    match x with
+    | Left   _       => return_ (Just z)
+    | Right (a', p') => loop a' p' n'
+    end in
+  x <-- next p0 ;;
+  match x with
+  | Left   _      => return_ Nothing
+  | Right (a, p') => loop a p' n
+  end.
 
-maximum :: (Monad m, Ord a) => Producer a m () -> m (Maybe a)
-maximum = fold step Nothing id
-  where
-    step x a = Just $ case x of
-        Nothing -> a
-        Just a' -> max a a'
+Definition length `{Monad m} {a} : Producer a m unit -> m nat :=
+  fold (fun n _ => n + 1) 0 id.
 
-minimum :: (Monad m, Ord a) => Producer a m () -> m (Maybe a)
-minimum = fold step Nothing id
-  where
-    step x a = Just $ case x of
-        Nothing -> a
-        Just a' -> min a a'
+Definition maximum `{Monad m} : Producer nat m unit -> m (Maybe nat) :=
+  let step x z := Just (match x with
+    | Nothing => z
+    | Just a' => max z a'
+    end) in
+  fold step Nothing id.
 
-null :: Monad m => Producer a m () -> m Bool
-null p = do
-    x <- next p
-    return $ case x of
-        Left  _ -> True
-        Right _ -> False
+Definition minimum `{Monad m} : Producer nat m unit -> m (Maybe nat) :=
+  let step x z := Just (match x with
+    | Nothing => z
+    | Just a' => min z a'
+    end) in
+  fold step Nothing id.
 
-sum :: (Monad m, Num a) => Producer a m () -> m a
-sum = fold (+) 0 id
+Definition sum `{Monad m} : Producer nat m unit -> m nat :=
+  fold plus 0 id.
 
-product :: (Monad m, Num a) => Producer a m () -> m a
-product = fold ( * ) 1 id
+Definition product `{Monad m} : Producer nat m unit -> m nat :=
+  fold mult 1 id.
 
-toList :: Producer a Identity () -> [a]
-toList = loop
-  where
-    loop p = case p of
-        Request v _  -> closed v
-        Respond a fu -> a:loop (fu ())
-        M         m  -> loop (runIdentity m)
-        Pure    _    -> []
+Fixpoint toList `(p : Producer a id unit) : seq a :=
+  if n isn't S n' then [::] else
+  match p with
+  | Request v _  => False_rect _ v
+  | Respond a fu => a :: toList (fu tt)
+  | M _     g h  => h >>= (toList \o g)
+  | Pure    _    => [::]
+  end.
 
-toListM :: Monad m => Producer a m () -> m [a]
-toListM = fold step begin done
-  where
-    step x a = x . (a:)
-    begin = id
-    done x = x []
+(* This is the version of toListM defined by the pipes library, but it is not
+   very amenable to proof. *)
 
+Definition toListM_fold `{Monad m} {a} : Producer a m unit -> m (seq a) :=
+  let step x a := x \o (cons a) in
+  let begin    := id in
+  let done x   := x [::] in
+  fold step begin done.
+
+Fixpoint toListM `{Monad m} `(p : Producer a m unit) : m (seq a) :=
+  match p with
+  | Request v _  => False_rect _ v
+  | Respond x fu => cons x <$> toListM (fu tt)
+  | M _     f t  => t >>= (toListM \o f)
+  | Pure    _    => pure [::]
+  end.
+
+(*
 zip :: Monad m
     => (Producer   a     m r)
     -> (Producer      b  m r)
@@ -316,7 +324,7 @@ tee p = evalStateP Nothing $ do
         a <- await
         lift $ put (Just a)
         return a
-    dn v = closed v
+    dn v = False_rect _ v
 
 generalize :: Monad m => Pipe a b m r -> x -> Proxy x a x b m r
 generalize p x0 = evalStateP x0 $ up >\\ hoist lift p //> dn
@@ -328,14 +336,6 @@ generalize p x0 = evalStateP x0 $ up >\\ hoist lift p //> dn
         x <- respond a
         lift $ put x
 *)
-
-Fixpoint toListM `{Monad m} `(p : Producer a m unit) : m (seq a) :=
-  match p with
-  | Request v _  => False_rect _ v
-  | Respond x fu => cons x <$> toListM (fu tt)
-  | M _     f t  => t >>= (toListM \o f)
-  | Pure    _    => pure [::]
-  end.
 
 End Bounded.
 
