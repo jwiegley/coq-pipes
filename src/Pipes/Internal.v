@@ -7,6 +7,14 @@ Generalizable All Variables.
 (****************************************************************************
  *
  * Proxy
+ *
+ * This is almost identical to the equivalent Haskell type, except we have
+ * applied the contravariant Yoneda lemma to satisfy Coq's strict positivity
+ * requirement (made applicable to covariant functors by changing it from a
+ * universally quantified function to an existentially quantified construction
+ * of two arguments). Therefore, proof of equivalence follows from a proof
+ * that [f a] is equivalent to [{ x & (x -> r, f x) }]. This proof may be
+ * found in the coq-haskell project, in the module [Data.Functor.Yoneda].
  *)
 
 Inductive Proxy (a' a b' b : Type) (m : Type -> Type) (r : Type) : Type :=
@@ -17,8 +25,8 @@ Inductive Proxy (a' a b' b : Type) (m : Type -> Type) (r : Type) : Type :=
 
 Arguments Request {a' a b' b m r} _ _.
 Arguments Respond {a' a b' b m r} _ _.
-Arguments M {a' a b' b m r x} _ _.
-Arguments Pure {a' a b' b m r} _.
+Arguments M       {a' a b' b m r x} _ _.
+Arguments Pure    {a' a b' b m r} _.
 
 (****************************************************************************
  *
@@ -28,9 +36,9 @@ Arguments Pure {a' a b' b m r} _.
 Definition foldProxy `{Monad m}
   `(ka : a' -> (a  -> s) -> s)
   `(kb : b  -> (b' -> s) -> s)
-  `(km : forall x, (x -> s) -> m x -> s)
+   (km : forall x, (x -> s) -> m x -> s)
   `(kp : r -> s)
-  (p : Proxy a' a b' b m r) : s :=
+   (p : Proxy a' a b' b m r) : s :=
   let fix go p := match p with
     | Request a' fa  => ka a' (go \o fa)
     | Respond b  fb' => kb b  (go \o fb')
@@ -41,8 +49,8 @@ Definition foldProxy `{Monad m}
 
 (* This is equivalent to [foldProxy Request Respond (fun _ => M)], but using
    that definition makes some proofs harder. *)
-Definition Proxy_bind {a' a b' b c d} `{Monad m}
-  (f : c -> Proxy a' a b' b m d) (p0 : Proxy a' a b' b m c) :
+Definition Proxy_bind `{Monad m}
+  `(f : c -> Proxy a' a b' b m d) (p0 : Proxy a' a b' b m c) :
   Proxy a' a b' b m d :=
   let fix go p := match p with
     | Request a' fa  => Request a' (go \o fa)
@@ -52,7 +60,7 @@ Definition Proxy_bind {a' a b' b c d} `{Monad m}
     end in
   go p0.
 
-(* The proofs of these laws are below. *)
+(* Proofs of the laws for these are below. *)
 Instance Proxy_Functor `{Monad m} {a' a b' b} : Functor (Proxy a' a b' b m) := {
   fmap := fun _ _ f => Proxy_bind (Pure \o f)
 }.
@@ -63,8 +71,7 @@ Instance Proxy_Applicative `{Monad m} {a' a b' b} :
   ap   := fun _ _ pf px => Proxy_bind (fmap ^~ px) pf
 }.
 
-Instance Proxy_Monad `{Monad m} {a' a b' b} :
-  Monad (Proxy a' a b' b m) := {
+Instance Proxy_Monad `{Monad m} {a' a b' b} : Monad (Proxy a' a b' b m) := {
   join := fun _ => Proxy_bind id
 }.
 
@@ -74,9 +81,9 @@ Include MonadLaws.
 
 Require Import FunctionalExtensionality.
 
-Tactic Notation "reduce_proxy" ident(IHu) tactic(T) :=
-  elim=> [? ? IHu|? ? IHu|? ? IHu ?| ?]; try T;
-  try (f_equal; extensionality RP_A; exact: IHu).
+Tactic Notation "reduce_proxy" ident(IHx) tactic(T) :=
+  elim=> [? ? IHx|? ? IHx|? ? IHx ?| ?]; try T;
+  try (f_equal; extensionality RP_A; exact: IHx).
 
 (****************************************************************************
  *
