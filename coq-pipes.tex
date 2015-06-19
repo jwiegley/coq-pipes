@@ -1,0 +1,99 @@
+\documentclass[12pt]{article}
+
+\usepackage{xltxtra}
+\defaultfontfeatures{Ligatures=TeX}
+\usepackage{fontspec}
+\usepackage{xcolor}
+\usepackage{fullpage}
+\usepackage[color]{coqdoc}
+\usepackage{amsmath,amssymb}
+\usepackage{url}
+\usepackage{makeidx,hyperref}
+\usepackage{minted}
+\usepackage{changepage}
+
+\newcommand{\naive}[0]{na\"ive}
+\newcommand{\pipes}{\texttt{pipes}}
+
+\title{Formalizing Pipes in Coq}
+\author{John Wiegley \and Gabriel Gonzalez}
+
+\makeindex
+
+\begin{document}
+
+\setlength{\parskip}{0.5ex}
+\maketitle
+
+\thispagestyle{empty}
+\mbox{}\vfill
+\begin{center}
+
+Copyright John Wiegley 2015.
+
+
+This work is licensed under a
+Creative Commons Attribution-Noncommercial-No Derivative Works 3.0
+Unported License.
+The license text is available at:
+
+\end{center}
+
+\begin{center} \url{http://creativecommons.org/licenses/by-nc-nd/3.0/} \end{center}
+
+\phantomsection
+\tableofcontents
+
+\section{Introduction}
+
+%\include{Intro.v}
+
+\section{Pipes.Internal}
+
+The first step toward formalization is to transport the core \pipes{}
+\verb|Proxy| type into Coq.  This represents a difficulty since the Haskell
+type is not strictly positive:
+
+\begin{adjustwidth}{2em}{}
+\begin{minted}{haskell}
+data Proxy a' a b' b m r
+    = Request a' (a  -> Proxy a' a b' b m r )
+    | Respond b  (b' -> Proxy a' a b' b m r )
+    | M          (m    (Proxy a' a b' b m r))
+    | Pure    r
+\end{minted}
+\end{adjustwidth}
+
+To work around this, the contravariant Yoneda lemma is used, made applicable
+to covariant functors by exchanging the universally quantified function it
+represents to an existentially quantified pairing:
+
+\begin{adjustwidth}{2em}{}
+\usemintedstyle{friendly}
+\begin{minted}{coq}
+Inductive Proxy (a' a b' b : Type) (m : Type -> Type) (r : Type) :=
+  | Request of a' & (a  -> Proxy a' a b' b m r)
+  | Respond of b  & (b' -> Proxy a' a b' b m r)
+  | M x     of (x -> Proxy a' a b' b m r) & m x
+  | Pure    of r.
+\end{minted}
+\end{adjustwidth}
+
+\section{Pipes.Core}
+
+%\include{src/Pipes/Core.v}
+
+\section{Pipes}
+
+%\include{src/Pipes.v}
+
+\clearpage
+\addcontentsline{toc}{section}{Bibliography}
+\bibliographystyle{plain}
+\bibliography{coq-pipes}
+
+\clearpage
+\addcontentsline{toc}{section}{Index}
+\printindex
+
+\end{document}
