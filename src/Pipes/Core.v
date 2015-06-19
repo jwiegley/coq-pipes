@@ -181,17 +181,6 @@ Ltac mere_extensionality IHx x f :=
 
 Section Respond.
 
-Theorem respond_distrib_old `{MonadLaws m} :
-  forall (x' x a' a b' b c' c r : Type)
-         (f : a  -> Proxy x' x b' b m a')
-         (g : a' -> Proxy x' x b' b m r)
-         (h : b  -> Proxy x' x c' c m b'),
-  (f >=> g) />/ h =1 (f />/ h) >=> (g />/ h).
-Proof.
-  move=> ? ? ? ? ? ? ? ? ? f ? ? x.
-  by applying_monad_laws IHx (f x).
-Qed.
-
 Theorem respond_distrib `{MonadLaws m} :
   forall (x' x a' a b' b c' c r : Type)
          (f : a  -> Proxy x' x b' b m a')
