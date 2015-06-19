@@ -17,11 +17,11 @@ Generalizable All Variables.
  * found in the coq-haskell project, in the module [Data.Functor.Yoneda].
  *)
 
-Inductive Proxy (a' a b' b : Type) (m : Type -> Type) (r : Type) : Type :=
+Inductive Proxy (a' a b' b : Type) (m : Type -> Type) (r : Type) :=
   | Request of a' & (a  -> Proxy a' a b' b m r)
   | Respond of b  & (b' -> Proxy a' a b' b m r)
-  | M : forall x, (x -> Proxy a' a b' b m r) -> m x -> Proxy a' a b' b m r
-  | Pure of r.
+  | M x     of (x -> Proxy a' a b' b m r) & m x
+  | Pure    of r.
 
 Arguments Request {a' a b' b m r} _ _.
 Arguments Respond {a' a b' b m r} _ _.
