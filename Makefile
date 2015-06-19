@@ -26,7 +26,7 @@ all: $(VOFILES)
 	$(MISSING) || exit 0
 
 %.vo: %.v Makefile.coq
-	@$(MAKE) -f Makefile.coq OPT=$(COQFLAGS)
+	$(MAKE) -f Makefile.coq OPT=$(COQFLAGS)
 
 %.v.tex: %.v %.glob
 	coqdoc --interpolate --latex --utf8 --body-only --light		\
@@ -57,11 +57,11 @@ coq-pipes.pdf: coq-pipes.tex $(TEX) coq-pipes.bib src/coqdoc.sty
 	bibtex $(@:.bbl=)
 
 Makefile.coq: _CoqProject
-	@coq_makefile -f _CoqProject -o $@
-	@perl -i fixmake.pl $@
+	coq_makefile -f _CoqProject -o $@
+	perl -i fixmake.pl $@
 
 clean: Makefile.coq
 	$(MAKE) -f Makefile.coq clean
 	git clean -dfX
-	find . -depth -name .coq-native -exec rm -fr {} \;
+	find src -depth -name .coq-native -exec rm -fr {} \;
 	rm -fr latex
