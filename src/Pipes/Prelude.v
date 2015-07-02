@@ -384,6 +384,25 @@ Proof.
     by congr (M _ _).
 Qed.
 
+(*
+filter (pure True) = cat
+filter (liftA2 (&&) p1 p2) = filter p1 >-> filter p2
+
+take 0 = return ()
+take (m + n) = take m >> take n
+take <infinity> = cat
+take (min m n) = take m >-> take n
+
+takeWhile (pure True) = cat
+takeWhile (liftA2 (&&) p1 p2) = takeWhile p1 >-> takeWhile p2
+
+drop 0 = cat
+drop (m + n) = drop m >-> drop n
+
+dropWhile (pure False) = cat
+dropWhile (liftA2 (||) p1 p2) = dropWhile p1 >-> dropWhile p2
+*)
+
 Theorem toListM_each_id : forall a,
   toListM \o (fun xs => each (x':=False) (x:=unit) xs) =1 pure (a:=seq a).
 Proof. by move=> ?; elim=> //= [? ? ->]. Qed.
