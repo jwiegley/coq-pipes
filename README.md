@@ -18,8 +18,8 @@ spiritual fathers of this formalization effort.
 ## Laws proven
 
 **43** laws were proven, with 7 requiring a compromise documented below. These
-  are indicated with **bolded** leaders in the following list. All of them are
-  proofs involving the functions `push` or `pull`.
+  are indicated with **bolded** leaders in the following list (all of those
+  are proofs involving either of the functions `push` or `pull`).
 
 ### Klesli category
 
