@@ -23,80 +23,80 @@ spiritual fathers of this formalization effort.
 
 ### Klesli category
 
-- Obligation [`functor_1`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Internal.v#95)
-- Obligation [`functor_2`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Internal.v#96)
+- Obligation [`functor_1`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Internal.v#L95)
+- Obligation [`functor_2`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Internal.v#L96)
 
-- Obligation [`applicative_1`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Internal.v#100)
-- Obligation [`applicative_2`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Internal.v#101)    (* 3-5 proven by inference *)
+- Obligation [`applicative_1`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Internal.v#L100)
+- Obligation [`applicative_2`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Internal.v#L101)    (* 3-5 proven by inference *)
 
-- Obligation [`monad_1`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Internal.v#109)
-- Obligation [`monad_2`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Internal.v#110)
-- Obligation [`monad_4`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Internal.v#111)          (* 3 proven by inference *)
+- Obligation [`monad_1`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Internal.v#L109)
+- Obligation [`monad_2`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Internal.v#L110)
+- Obligation [`monad_4`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Internal.v#L111)          (* 3 proven by inference *)
 
 ### Respond category
 
-- Theorem [`respond_distrib`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#184) : `(f >=> g) />/ h = (f />/ h) >=> (g />/ h)`
+- Theorem [`respond_distrib`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#L184) : `(f >=> g) />/ h = (f />/ h) >=> (g />/ h)`
 
-- Obligation [`(* Right identity: Respond *)`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#201)
-- Obligation [`(* Left identity: Respond *)`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#205)
-- Obligation [`(* Associativity: Respond *)`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#208)
+- Obligation [`(* Right identity: Respond *)`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#L201)
+- Obligation [`(* Left identity: Respond *)`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#L205)
+- Obligation [`(* Associativity: Respond *)`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#L208)
 
-- Corollary [`respond_zero`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#213) : `pure />/ f = pure`
+- Corollary [`respond_zero`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#L213) : `pure />/ f = pure`
 
 ### Request category
 
-- Theorem [`request_distrib`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#226) : `h \>\ (f >=> g) = (h \>\ f) >=> (h \>\ g)`
+- Theorem [`request_distrib`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#L226) : `h \>\ (f >=> g) = (h \>\ f) >=> (h \>\ g)`
 
-- Obligation [`(* Right identity: Request *)`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#243)
-- Obligation [`(* Left identity: Request *)`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#246)
-- Obligation [`(* Associativity: Request *)`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#249)
+- Obligation [`(* Right identity: Request *)`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#L243)
+- Obligation [`(* Left identity: Request *)`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#L246)
+- Obligation [`(* Associativity: Request *)`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#L249)
 
-- Corollary [`request_zero`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#254) : `f \>\ pure = pure`
+- Corollary [`request_zero`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#L254) : `f \>\ pure = pure`
 
 ### Push category
 
-- Lemma [`push_request`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#292) : `Request x g >>~ f = Request x (g >~> f)`
-- Lemma [`push_m`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#298) : `M g h >>~ f = M (g >~> f) h`
+- Lemma [`push_request`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#L292) : `Request x g >>~ f = Request x (g >~> f)`
+- Lemma [`push_m`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#L298) : `M g h >>~ f = M (g >~> f) h`
 
-- **Obligation** [`(* Right identity: Push *)`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#312)
-- **Obligation** [`(* Left identity: Push *)`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#321)
-- Obligation [`(* Associativity: Push *)`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#331)
+- **Obligation** [`(* Right identity: Push *)`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#L312)
+- **Obligation** [`(* Left identity: Push *)`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#L321)
+- Obligation [`(* Associativity: Push *)`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#L331)
 
 ### Pull category
 
-- Lemma [`pull_respond`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#358) : `f +>> Respond x g = Respond x (f >+> g)`
-- Lemma [`pull_m`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#364) : `f +>> M g h = M (f >+> g) h`
+- Lemma [`pull_respond`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#L358) : `f +>> Respond x g = Respond x (f >+> g)`
+- Lemma [`pull_m`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#L364) : `f +>> M g h = M (f >+> g) h`
 
-- **Obligation** [`(* Right identity: Pull *)`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#378)
-- **Obligation** [`(* Left identity: Pull *)`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#388)
-- Obligation [`(* Associativity: Pull *)`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#399)
+- **Obligation** [`(* Right identity: Pull *)`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#L378)
+- **Obligation** [`(* Left identity: Pull *)`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#L388)
+- Obligation [`(* Associativity: Pull *)`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#L399)
 
-- **Theorem** [`push_pull_assoc`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#418) : `(f >+> g) >~> h = f >+> (g >~> h)`
+- **Theorem** [`push_pull_assoc`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#L418) : `(f >+> g) >~> h = f >+> (g >~> h)`
 
 ### Duals
 
-- Theorem [`request_id`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#453)       : `reflect \o request = respond`
-- Theorem [`reflect_distrib`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#456)  : `reflect (f x >>= g) = reflect (f x) >>= (reflect \o g)`
-- Theorem [`request_comp`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#466)     : `reflect \o (f \>\ g) = (reflect \o g) />/ (reflect \o f)`
-- Theorem [`respond_id`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#475)       : `reflect \o respond = request`
-- Theorem [`respond_comp`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#478)     : `reflect \o (f />/ g) = (reflect \o g) \>\ (reflect \o f)`
-- Corollary [`distributivity`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#496) : `reflect \o (f >=> g) = (reflect \o f) >=> (reflect \o g)`
-- Theorem [`zero_law`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#502)         : `reflect \o pure = pure`
-- Theorem [`involution`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#505)       : `reflect \o reflect = id`
+- Theorem [`request_id`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#L453)       : `reflect \o request = respond`
+- Theorem [`reflect_distrib`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#L456)  : `reflect (f x >>= g) = reflect (f x) >>= (reflect \o g)`
+- Theorem [`request_comp`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#L466)     : `reflect \o (f \>\ g) = (reflect \o g) />/ (reflect \o f)`
+- Theorem [`respond_id`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#L475)       : `reflect \o respond = request`
+- Theorem [`respond_comp`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#L478)     : `reflect \o (f />/ g) = (reflect \o g) \>\ (reflect \o f)`
+- Corollary [`distributivity`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#L496) : `reflect \o (f >=> g) = (reflect \o f) >=> (reflect \o g)`
+- Theorem [`zero_law`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#L502)         : `reflect \o pure = pure`
+- Theorem [`involution`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Core.v#L505)       : `reflect \o reflect = id`
 
 ### General theorems
 
-- Theorem [`for_yield_f`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes.v#72)   : `forP (yield x) f = f x`
-- Theorem [`for_yield`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes.v#81)     : `forP s yield = s`
-- Theorem [`nested_for_a`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes.v#90)  : `forP s (fun a => forP (f a) g) = forP (forP s f) g`
-- Theorem [`nested_for_b`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes.v#104) : `forP (forP s f) g = forP s (f />/ g)`
+- Theorem [`for_yield_f`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes.v#L72)   : `forP (yield x) f = f x`
+- Theorem [`for_yield`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes.v#L81)     : `forP s yield = s`
+- Theorem [`nested_for_a`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes.v#L90)  : `forP s (fun a => forP (f a) g) = forP (forP s f) g`
+- Theorem [`nested_for_b`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes.v#L104) : `forP (forP s f) g = forP s (f />/ g)`
 
 ### Prelude functions
 
-- **Theorem** [`map_id`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Prelude.v#351)           : `map id = cat`
-- **Theorem** [`map_compose`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Prelude.v#360)      : `map (g \o f) = map f >-> map g`
+- **Theorem** [`map_id`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Prelude.v#L351)           : `map id = cat`
+- **Theorem** [`map_compose`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Prelude.v#L360)      : `map (g \o f) = map f >-> map g`
 
-- Theorem [`toListM_each_id`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Prelude.v#387)  : `toListM \o each = pure`
+- Theorem [`toListM_each_id`](https://github.com/jwiegley/coq-pipes/blob/master/src/Pipes/Prelude.v#L387)  : `toListM \o each = pure`
 
 ## The Compromise
 
