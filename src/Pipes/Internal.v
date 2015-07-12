@@ -110,4 +110,22 @@ Obligation 1. by reduce_proxy IHx simpl. Qed.
 Obligation 2. by reduce_proxy IHx simpl. Qed.
 Obligation 4. by reduce_proxy IHx simpl. Qed.
 
+Require Import Hask.Control.Category.
+
+Program Instance Kleisli_Category {a' a b' b} `{MonadLaws m} : Category := {
+  ob     := Type;
+  hom    := fun A B => A -> Proxy a' a b' b m B;
+  c_id   := fun _ => pure;
+  c_comp := fun _ _ _ f g => f <=< g
+}.
+Obligation 2.
+  extensionality x.
+  by rewrite /kleisli_compose /bind join_fmap_pure.
+Qed.
+Obligation 3.
+  extensionality x.
+  by rewrite /kleisli_compose /bind /funcomp
+             -join_fmap_fmap_x -join_fmap_join_x !fmap_comp_x.
+Qed.
+
 End PipesLawsInternal.
