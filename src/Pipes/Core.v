@@ -47,7 +47,7 @@ Notation "x >\\ y" := (rofP x y) (at level 60).
 
 Notation "f \>\ g" := (fun a => f >\\ g a) (at level 60).
 
-Definition push `{Monad m} {a' a r} {n : nat} {default : r} :
+Definition push {a' a m r} {n : nat} {default : r} :
   a -> Proxy a' a a' a m r :=
   let fix go n x :=
     if n isn't S n' then Pure default else
@@ -57,7 +57,7 @@ Definition push `{Monad m} {a' a r} {n : nat} {default : r} :
 (* Very strangly, if the order of [fb] and [p0] is reversed, then the right
    identity law for the push category will fail to complete with a universe
    inconsistency. *)
-Fixpoint pushR `{Monad m} {a' a b' b c' c r} (fb : b -> Proxy b' b c' c m r)
+Fixpoint pushR {a' a b' b c' c m r} (fb : b -> Proxy b' b c' c m r)
   (p0 : Proxy a' a b' b m r) {struct p0} : Proxy a' a c' c m r :=
   match p0 with
   | Request a' fa  => Request a' (pushR fb \o fa)
@@ -77,14 +77,14 @@ Notation "x >>~ y" := (pushR y x) (at level 60).
 
 Notation "f >~> g" := (fun a => f a >>~ g) (at level 60).
 
-Definition pull `{Monad m} {a' a r} {n : nat} {default : r} :
+Definition pull {a' a m r} {n : nat} {default : r} :
   a' -> Proxy a' a a' a m r :=
   let fix go n x :=
     if n isn't S n' then Pure default else
     (Request ^~ (Respond ^~ @go n')) x
   in go n.
 
-Fixpoint pullR `{Monad m} {a' a b' b c' c r} (fb' : b' -> Proxy a' a b' b m r)
+Fixpoint pullR {a' a b' b c' c m r} (fb' : b' -> Proxy a' a b' b m r)
   (p0 : Proxy b' b c' c m r) {struct p0} : Proxy a' a c' c m r :=
   match p0 with
   | Request b' fb  =>
@@ -275,11 +275,11 @@ Hypothesis Hn : n > 0.
 Variable r : Type.
 Variable d : r.
 
-Hypothesis Hpush : forall `{Monad m} a' a n d,
-  @push m _ a' a r n d = @push m _ a' a r n.+1 d.
+Hypothesis Hpush : forall m a' a n d,
+  @push a' a m r n d = @push a' a m r n.+1 d.
 
-Hypothesis Hpull : forall `{Monad m} a' a n d,
-  @pull m _ a' a r n d = @pull m _ a' a r n.+1 d.
+Hypothesis Hpull : forall m a' a n d,
+  @pull a' a m r n d = @pull a' a m r n.+1 d.
 
 Global Ltac assume_infinity :=
   move: Hn;
@@ -306,7 +306,7 @@ Include Compromise.
 Program Instance Push_Category `{MonadLaws m} : Category := {
   ob     := Type * Type;
   hom    := fun A B => snd B -> Proxy (fst B) (snd B) (fst A) (snd A) m r;
-  c_id   := fun A => @push m _ (fst A) (snd A) r n d;
+  c_id   := fun A => @push (fst A) (snd A) m r n d;
   c_comp := fun _ _ _ f g => f >~> g
 }.
 Obligation 1. (* Right identity *)
@@ -372,7 +372,7 @@ Include Push.
 Program Instance Pull_Category `{MonadLaws m} : Category := {
   ob     := Type * Type;
   hom    := fun A B => fst A -> Proxy (fst B) (snd B) (fst A) (snd A) m r;
-  c_id   := fun A => @pull m _ (fst A) (snd A) r n d;
+  c_id   := fun A => @pull (fst A) (snd A) m r n d;
   c_comp := fun _ _ _ f g => f >+> g
 }.
 Obligation 1. (* Right identity *)
