@@ -10,7 +10,7 @@ Definition yield {a x' x m} (z : a) : Proxy x' x unit a m unit :=
   let go : Producer' a m unit := fun _ _ => respond z in @go x' x.
 
 Notation "f ~> g" := (f />/ g) (at level 70).
-Notation "f <~ g" := (f ~> g) (at level 70).
+Notation "f <~ g" := (g ~> f) (at level 70).
 
 Definition await {a y' y m} : Proxy unit a y' y m a :=
   let go : Consumer' a m a := fun _ _ => request tt in @go y' y.
