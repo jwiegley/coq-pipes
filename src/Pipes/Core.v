@@ -127,14 +127,14 @@ Definition Consumer' a m r      := forall y' y, Proxy unit a y' y m r.
 Definition Client' a' a m r     := forall y' y, Proxy a' a y' y m r.
 Definition Server' b' b m r     := forall x' x, Proxy x' x b' b m r.
 
-Notation "f \<\ g" := (g />/ f) (at level 60).
-Notation "f /</ g" := (g \>\ f) (at level 60).
-Notation "f <~< g" := (g >~> f) (at level 60).
-Notation "f <+< g" := (g >+> f) (at level 60).
-Notation "f <// x" := (x //> f) (at level 60).
-Notation "x //< f" := (f >\\ x) (at level 60).
-Notation "f ~<< x" := (x >>~ f) (at level 60).
-Notation "x <<+ f" := (f +>> x) (at level 60).
+Notation "f \<\ g" := (g />/ f) (at level 60, only parsing).
+Notation "f /</ g" := (g \>\ f) (at level 60, only parsing).
+Notation "f <~< g" := (g >~> f) (at level 60, only parsing).
+Notation "f <+< g" := (g >+> f) (at level 60, only parsing).
+Notation "f <// x" := (x //> f) (at level 60, only parsing).
+Notation "x //< f" := (f >\\ x) (at level 60, only parsing).
+Notation "f ~<< x" := (x >>~ f) (at level 60, only parsing).
+Notation "x <<+ f" := (f +>> x) (at level 60, only parsing).
 
 (****************************************************************************
  ****************************************************************************
