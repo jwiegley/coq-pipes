@@ -1,0 +1,39 @@
+opam-version: "2.0"
+maintainer: "johnw@newartisans.com"
+
+homepage: "https://github.com/jwiegley/coq-pipes"
+dev-repo: "git+https://github.com/jwiegley/coq-pipes.git"
+bug-reports: "https://github.com/jwiegley/coq-pipes/issues"
+license: "BSD-3-Clause"
+
+synopsis: "A formalization of the Haskell pipes library in Coq"
+description: """
+This is a formalization in Coq of the Haskell pipes library. Nearly all its
+functions have been implemented, and the laws mentioned in the documentation
+proven. It relies on the coq-haskell project, whose aim is to simplify both
+the transcoding of Haskell types and functions into Coq, and the extraction
+of proven algorithms back into Haskell.
+"""
+
+build: [make "-j%{jobs}%"]
+install: [make "install"]
+depends: [
+  "coq" {(>= "8.14" & < "8.21~") | (= "dev")}
+  "coq-haskell" {= "dev"}
+]
+
+url {
+  src: "https://github.com/jwiegley/coq-pipes/archive/refs/tags/1.0.0.tar.gz"
+  checksum: "sha256="
+}
+
+tags: [
+  "keyword: pipes"
+  "keyword: category theory"
+  "keyword: streaming"
+  "category: Computer Science/Data Structures and Algorithms"
+  "logpath: P"
+]
+authors: [
+  "John Wiegley"
+]

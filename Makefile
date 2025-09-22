@@ -59,6 +59,9 @@ coq-pipes.pdf: coq-pipes.tex $(TEX) coq-pipes.bib src/coqdoc.sty
 Makefile.coq: _CoqProject
 	coq_makefile -f _CoqProject -o $@
 
+install: Makefile.coq
+	$(MAKE) -f Makefile.coq install
+
 clean: Makefile.coq
 	$(MAKE) -f Makefile.coq clean
 	git clean -dfX
