@@ -1,3 +1,4 @@
+From Coq Require Import ssreflect ssrfun ssrbool.
 Require Import Hask.Prelude.
 Require Import Hask.Control.Monad.
 Require Import Hask.Data.Functor.Identity.
@@ -42,7 +43,7 @@ Definition foldProxy `{Monad m}
   let fix go p := match p with
     | Request a' fa  => ka a' (go \o fa)
     | Respond b  fb' => kb b  (go \o fb')
-    | M _     g  h   => km _  (go \o g) h
+    | M g  h   => km _  (go \o g) h
     | Pure    r      => kp r
     end in
   go p.
@@ -55,23 +56,23 @@ Definition Proxy_bind `{Monad m}
   let fix go p := match p with
     | Request a' fa  => Request a' (go \o fa)
     | Respond b  fb' => Respond b  (go \o fb')
-    | M _     f  t   => M (go \o f) t
+    | M f  t   => M (go \o f) t
     | Pure    r      => f r
     end in
   go p0.
 
 (* Proofs of the laws for these are below. *)
-Instance Proxy_Functor `{Monad m} {a' a b' b} : Functor (Proxy a' a b' b m) := {
+#[export] Instance Proxy_Functor `{Monad m} {a' a b' b} : Functor (Proxy a' a b' b m) := {
   fmap := fun _ _ f => Proxy_bind (Pure \o f)
 }.
 
-Instance Proxy_Applicative `{Monad m} {a' a b' b} :
+#[export] Instance Proxy_Applicative `{Monad m} {a' a b' b} :
   Applicative (Proxy a' a b' b m) := {
   pure := fun _ => Pure;
   ap   := fun _ _ pf px => Proxy_bind (fmap ^~ px) pf
 }.
 
-Instance Proxy_Monad `{Monad m} {a' a b' b} : Monad (Proxy a' a b' b m) := {
+#[export] Instance Proxy_Monad `{Monad m} {a' a b' b} : Monad (Proxy a' a b' b m) := {
   join := fun _ => Proxy_bind id
 }.
 
@@ -90,29 +91,40 @@ Tactic Notation "reduce_proxy" ident(IHx) tactic(T) :=
  * Kleisli Category for Proxy a' a b' b m
  *)
 
-Program Instance Proxy_FunctorLaws `{MonadLaws m} {a' a b' b} :
+#[export] Program Instance Proxy_FunctorLaws `{MonadLaws m} {a' a b' b} :
   FunctorLaws (Proxy a' a b' b m).
-Obligation 1. by reduce_proxy IHx simpl. Qed.
-Obligation 2. by reduce_proxy IHx simpl. Qed.
-
-Program Instance Proxy_ApplicativeLaws `{MonadLaws m} {a' a b' b} :
-  ApplicativeLaws (Proxy a' a b' b m).
-Obligation 1. by reduce_proxy IHx simpl. Qed.
+Obligation 1.
+  extensionality x; move: x.
+  by reduce_proxy IHx (rewrite /Datatypes.id /=). Qed.
 Obligation 2.
-  move: u; reduce_proxy IHu (rewrite /funcomp /= /funcomp).
-  move: v; reduce_proxy IHv (rewrite /funcomp /= /funcomp).
+  extensionality x; move: x; by reduce_proxy IHx simpl. Qed.
+
+#[export] Program Instance Proxy_ApplicativeLaws `{MonadLaws m} {a' a b' b} :
+  ApplicativeLaws (Proxy a' a b' b m).
+Obligation 1.
+  extensionality x; move: x.
+  by reduce_proxy IHx (rewrite /Datatypes.id /=). Qed.
+Obligation 2.
+  move: u; reduce_proxy IHu (rewrite /comp /= /comp).
+  move: v; reduce_proxy IHv (rewrite /comp /= /comp).
   by move: w; reduce_proxy IHw simpl.
 Qed.
 
-Program Instance Proxy_MonadLaws `{MonadLaws m} {a' a b' b} :
+#[export] Program Instance Proxy_MonadLaws `{MonadLaws m} {a' a b' b} :
   MonadLaws (Proxy a' a b' b m).
-Obligation 1. by reduce_proxy IHx simpl. Qed.
-Obligation 2. by reduce_proxy IHx simpl. Qed.
-Obligation 4. by reduce_proxy IHx simpl. Qed.
+Obligation 1.
+  extensionality x; move: x.
+  by reduce_proxy IHx (rewrite /Datatypes.id /=). Qed.
+Obligation 2.
+  extensionality x; move: x.
+  by reduce_proxy IHx (rewrite /Datatypes.id /=). Qed.
+Obligation 4.
+  extensionality x; move: x.
+  by reduce_proxy IHx (rewrite /Datatypes.id /=). Qed.
 
 Require Import Hask.Control.Category.
 
-Program Instance Kleisli_Category {a' a b' b} `{MonadLaws m} : Category := {
+#[export] Program Instance Kleisli_Category {a' a b' b} `{MonadLaws m} : Category := {
   ob     := Type;
   hom    := fun A B => A -> Proxy a' a b' b m B;
   c_id   := fun _ => pure;
@@ -124,7 +136,7 @@ Obligation 2.
 Qed.
 Obligation 3.
   extensionality x.
-  by rewrite /kleisli_compose /bind /funcomp
+  by rewrite /kleisli_compose /bind /comp
              -join_fmap_fmap_x -join_fmap_join_x !fmap_comp_x.
 Qed.
 

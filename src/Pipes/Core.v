@@ -1,3 +1,4 @@
+From Coq Require Import ssreflect ssrfun ssrbool.
 Require Import Hask.Prelude.
 Require Import Hask.Control.Monad.
 Require Import Hask.Data.Functor.Identity.
@@ -9,7 +10,7 @@ Fixpoint runEffect `{Monad m} `(p : Proxy False unit unit False m r) : m r :=
   match p with
   | Request v f => False_rect _ v
   | Respond v f => False_rect _ v
-  | M _     f t => t >>= (runEffect \o f)
+  | M f t => t >>= (runEffect \o f)
   | Pure    r   => pure r
   end.
 
@@ -21,7 +22,7 @@ Definition forP `{Monad m} {x' x a' b' b c' c} (p0 : Proxy x' x b' b m a')
   let fix go p := match p with
     | Request x' fx  => Request x' (go \o fx)
     | Respond b  fb' => fb b >>= (go \o fb')
-    | M _     f  t   => M (go \o f) t
+    | M f  t   => M (go \o f) t
     | Pure       a   => Pure a
     end in
   go p0.
@@ -38,7 +39,7 @@ Definition rofP `{Monad m} {y' y a' a b' b c} (fb' : b' -> Proxy a' a y' y m b)
   let fix go p := match p with
     | Request b' fb  => fb' b' >>= (go \o fb)
     | Respond x  fx' => Respond x (go \o fx')
-    | M _     f  t   => M (go \o f) t
+    | M f  t   => M (go \o f) t
     | Pure       a   => Pure a
     end in
   go p0.
@@ -65,11 +66,11 @@ Fixpoint pushR {a' a b' b c' c m r} (fb : b -> Proxy b' b c' c m r)
       let fix go' p := match p with
         | Request b' fb  => pushR fb (fb' b')
         | Respond c  fc' => Respond c (go' \o fc')
-        | M _     f  t   => M (go' \o f) t
+        | M f  t   => M (go' \o f) t
         | Pure       a   => Pure a
         end in
       go' (fb b)
-  | M _     f  t   => M (pushR fb \o f) t
+  | M f  t   => M (pushR fb \o f) t
   | Pure       a   => Pure a
   end.
 
@@ -91,12 +92,12 @@ Fixpoint pullR {a' a b' b c' c m r} (fb' : b' -> Proxy a' a b' b m r)
       let fix go' p := match p with
         | Request a' fa  => Request a' (go' \o fa)
         | Respond b  fb' => pullR fb' (fb b)
-        | M _     f  t   => M (go' \o f) t
+        | M f  t   => M (go' \o f) t
         | Pure       a   => Pure a
         end in
       go' (fb' b')
   | Respond c  fc' => Respond c (pullR fb' \o fc')
-  | M _     f  t   => M (pullR fb' \o f) t
+  | M f  t   => M (pullR fb' \o f) t
   | Pure       a   => Pure a
   end.
 
@@ -109,7 +110,7 @@ Definition reflect `{Monad m} `(p : Proxy a' a b' b m r) :
   let fix go p := match p with
     | Request a' fa  => Respond a' (go \o fa)
     | Respond b  fb' => Request b  (go \o fb')
-    | M _     g  h   => M (go \o g) h
+    | M g  h   => M (go \o g) h
     | Pure    r      => Pure r
     end in
   go p.
@@ -153,6 +154,107 @@ Require Import FunctionalExtensionality.
 
 (****************************************************************************
  *
+ * One-step reduction lemmas
+ *
+ * These replace uses of simpl/(/=) that over-expand goals when SSReflect
+ * is imported.  Each lemma unfolds exactly one layer of a let-fix or
+ * Proxy_bind without touching comp inside the recursive body.
+ *)
+
+(* forP *)
+Lemma forP_Request `{Monad m} {x' x a' b' b c' c}
+  (x0 : x') (fx : x -> Proxy x' x b' b m a')
+  (h : b -> Proxy x' x c' c m b') :
+  forP (Request x0 fx) h = Request x0 (fun a => forP (fx a) h).
+Proof. by []. Qed.
+
+Lemma forP_Respond `{Monad m} {x' x a' b' b c' c}
+  (b0 : b) (fb' : b' -> Proxy x' x b' b m a')
+  (h : b -> Proxy x' x c' c m b') :
+  forP (Respond b0 fb') h = h b0 >>= (fun b' => forP (fb' b') h).
+Proof. by []. Qed.
+
+Lemma forP_M `{Monad m} {x' x a' b' b c' c} {t}
+  (f : t -> Proxy x' x b' b m a') (mx : m t)
+  (h : b -> Proxy x' x c' c m b') :
+  forP (M f mx) h = M (fun x => forP (f x) h) mx.
+Proof. by []. Qed.
+
+Lemma forP_Pure `{Monad m} {x' x a' b' b c' c}
+  (a0 : a') (h : b -> Proxy x' x c' c m b') :
+  forP (Pure a0) h = Pure a0.
+Proof. by []. Qed.
+
+(* rofP *)
+Lemma rofP_Request `{Monad m} {y' y a' a b' b c}
+  (fb' : b' -> Proxy a' a y' y m b)
+  (b0 : b') (fb : b -> Proxy b' b y' y m c) :
+  rofP fb' (Request b0 fb) = fb' b0 >>= (fun a => rofP fb' (fb a)).
+Proof. by []. Qed.
+
+Lemma rofP_Respond `{Monad m} {y' y a' a b' b c}
+  (fb' : b' -> Proxy a' a y' y m b)
+  (x0 : y) (fx' : y' -> Proxy b' b y' y m c) :
+  rofP fb' (Respond x0 fx') = Respond x0 (fun y => rofP fb' (fx' y)).
+Proof. by []. Qed.
+
+Lemma rofP_M `{Monad m} {y' y a' a b' b c} {t}
+  (fb' : b' -> Proxy a' a y' y m b)
+  (f : t -> Proxy b' b y' y m c) (mx : m t) :
+  rofP fb' (M f mx) = M (fun x => rofP fb' (f x)) mx.
+Proof. by []. Qed.
+
+Lemma rofP_Pure `{Monad m} {y' y a' a b' b c}
+  (fb' : b' -> Proxy a' a y' y m b) (a0 : c) :
+  rofP fb' (Pure a0) = Pure a0.
+Proof. by []. Qed.
+
+(* bind (Proxy_bind) *)
+Lemma bind_Request `{Monad m} {a' a b' b r s}
+  (x0 : a') (fx : a -> Proxy a' a b' b m r)
+  (g : r -> Proxy a' a b' b m s) :
+  Request x0 fx >>= g = Request x0 (fun a => fx a >>= g).
+Proof. by []. Qed.
+
+Lemma bind_Respond `{Monad m} {a' a b' b r s}
+  (b0 : b) (fb' : b' -> Proxy a' a b' b m r)
+  (g : r -> Proxy a' a b' b m s) :
+  Respond b0 fb' >>= g = Respond b0 (fun b' => fb' b' >>= g).
+Proof. by []. Qed.
+
+Lemma bind_M `{Monad m} {a' a b' b r s} {t}
+  (f : t -> Proxy a' a b' b m r) (mx : m t)
+  (g : r -> Proxy a' a b' b m s) :
+  M f mx >>= g = M (fun x => f x >>= g) mx.
+Proof. by []. Qed.
+
+Lemma bind_Pure `{Monad m} {a' a b' b r s}
+  (x : r) (g : r -> Proxy a' a b' b m s) :
+  Pure x >>= g = g x.
+Proof. by []. Qed.
+
+(* reflect *)
+Lemma reflect_Request `{Monad m} {a' a b' b r}
+  (x0 : a') (fx : a -> Proxy a' a b' b m r) :
+  reflect (Request x0 fx) = Respond x0 (reflect \o fx).
+Proof. by []. Qed.
+
+Lemma reflect_Respond `{Monad m} {a' a b' b r}
+  (b0 : b) (fb' : b' -> Proxy a' a b' b m r) :
+  reflect (Respond b0 fb') = Request b0 (reflect \o fb').
+Proof. by []. Qed.
+
+Lemma reflect_M `{Monad m} {a' a b' b r} {t}
+  (f : t -> Proxy a' a b' b m r) (mx : m t) :
+  reflect (M f mx) = M (reflect \o f) mx.
+Proof. by []. Qed.
+
+Lemma reflect_Pure `{Monad m} {a' a b' b r} (x : r) :
+  reflect (Pure x) = @Pure b b' a a' m r x.
+Proof. by []. Qed.
+
+(****************************************************************************
+ *
  * Respond Category
  *)
 
@@ -161,23 +263,42 @@ Ltac applying_monad_laws IHx X :=
   move: X;
   reduce_proxy IHx
     (first [ apply functional_extensionality in IHx;
-             by rewrite /= /funcomp IHx /bind /funcomp
+             rewrite ?bind_Request ?bind_Respond ?bind_M
+                     ?forP_Request ?forP_Respond ?forP_M
+                     ?rofP_Request ?rofP_Respond ?rofP_M IHx;
+             by rewrite /bind /comp
                -join_fmap_fmap_x fmap_comp_x
                -join_fmap_join_x fmap_comp_x
-           | rewrite /bind /= ]).
+           | rewrite ?bind_Request ?bind_Respond ?bind_M
+                     ?forP_Request ?forP_Respond ?forP_M
+                     ?rofP_Request ?rofP_Respond ?rofP_M ]).
 
 Ltac applying_theorem IHx X H :=
   rewrite ?/kleisli_compose;
   move: X;
   reduce_proxy IHx
     (first [ apply functional_extensionality in IHx;
-             by rewrite /= /funcomp -IHx H
-           | rewrite /= ]).
+             rewrite ?bind_Request ?bind_Respond ?bind_M
+                     ?forP_Request ?forP_Respond ?forP_M
+                     ?rofP_Request ?rofP_Respond ?rofP_M
+                     ?reflect_Request ?reflect_Respond ?reflect_M;
+             by rewrite /comp -IHx H
+           | rewrite ?bind_Request ?bind_Respond ?bind_M
+                     ?forP_Request ?forP_Respond ?forP_M
+                     ?rofP_Request ?rofP_Respond ?rofP_M
+                     ?reflect_Request ?reflect_Respond ?reflect_M ]).
+
+Ltac step_reduce :=
+  rewrite ?forP_Request ?forP_Respond ?forP_M ?forP_Pure
+          ?rofP_Request ?rofP_Respond ?rofP_M ?rofP_Pure
+          ?reflect_Request ?reflect_Respond ?reflect_M ?reflect_Pure
+          ?/respond ?/request
+          ?bind_Request ?bind_Respond ?bind_M ?bind_Pure.
 
 Ltac mere_extensionality IHx x f :=
   extensionality x;
   move: (f x);
-  reduce_proxy IHx (rewrite /= /bind /=).
+  reduce_proxy IHx (try step_reduce; simpl).
 
 Section Respond.
 
@@ -192,7 +313,7 @@ Proof.
   by applying_monad_laws IHx (f x).
 Qed.
 
-Program Instance Respond_Category {x' x} `{MonadLaws m} : Category := {
+#[export] Program Instance Respond_Category {x' x} `{MonadLaws m} : Category := {
   ob     := Type * Type;
   hom    := fun A B => snd A -> Proxy x' x (fst B) (snd B) m (fst A);
   c_id   := fun A => @respond x' x (fst A) (snd A) m;
@@ -200,7 +321,10 @@ Program Instance Respond_Category {x' x} `{MonadLaws m} : Category := {
 }.
 Obligation 1. (* Right identity *)
   extensionality z.
-  exact: join_fmap_pure_x.
+  move: (f z).
+  by reduce_proxy IHx
+    (rewrite ?forP_Request ?forP_Respond ?forP_M ?forP_Pure
+             /respond /bind /=).
 Qed.
 Obligation 2. (* Left identity *)
   by mere_extensionality IHx z f.
@@ -234,14 +358,19 @@ Proof.
   by applying_monad_laws IHx (f x).
 Qed.
 
-Program Instance Request_Category {x' x} `{MonadLaws m} : Category := {
+#[export] Program Instance Request_Category {x' x} `{MonadLaws m} : Category := {
   ob     := Type * Type;
   hom    := fun A B => fst A -> Proxy (fst B) (snd B) x' x m (snd A);
   c_id   := fun A => @request (fst A) (snd A) x' x m;
   c_comp := fun _ _ _ f g => f \>\ g
 }.
 Obligation 1. (* Right identity *)
-  by mere_extensionality IHx z f.
+  extensionality z.
+  (* Goal: rofP f (request z) = f z.
+     rofP f (Request z Pure) reduces to f z >>= Pure = f z. *)
+  move: (f z).
+  by reduce_proxy IHx
+    (try step_reduce; simpl).
 Qed.
 Obligation 2. (* Left identity *)
   by mere_extensionality IHx z f.
@@ -276,14 +405,14 @@ Variable r : Type.
 Variable d : r.
 
 Hypothesis Hpush : forall m a' a n d,
-  @push a' a m r n d = @push a' a m r n.+1 d.
+  @push a' a m r n d = @push a' a m r (S n) d.
 
 Hypothesis Hpull : forall m a' a n d,
-  @pull a' a m r n d = @pull a' a m r n.+1 d.
+  @pull a' a m r n d = @pull a' a m r (S n) d.
 
 Global Ltac assume_infinity :=
   move: Hn;
-  case E: n => // [n'] _.
+  case E: n => [|n'] Hn'; first by (exfalso; inversion Hn').
 
 End Compromise.
 
@@ -303,24 +432,26 @@ Proof. by move=> x; reduce_over @M g y IHx. Qed.
 
 Include Compromise.
 
-Program Instance Push_Category `{MonadLaws m} : Category := {
+#[export] Program Instance Push_Category `{MonadLaws m} : Category := {
   ob     := Type * Type;
   hom    := fun A B => snd B -> Proxy (fst B) (snd B) (fst A) (snd A) m r;
   c_id   := fun A => @push (fst A) (snd A) m r n d;
   c_comp := fun _ _ _ f g => f >~> g
 }.
 Obligation 1. (* Right identity *)
-  mere_extensionality IHx z f.
-  assume_infinity.
+  extensionality z.
+  move: (f z).
+  reduce_proxy IHx simpl.
+  rewrite Hpush /=.
   congr (Respond _ _).
-  rewrite -/push Hpush.
-  rewrite E in IHx.
-  move/functional_extensionality in IHx.
+  rewrite -/push.
+  extensionality w.
+  simpl.
   exact: IHx.
 Qed.
 Obligation 2. (* Left identity *)
   extensionality z.
-  assume_infinity => /=.
+  rewrite Hpush /=.
   move: (f z).
   reduce_proxy IHx simpl.
   congr (Request _ _).
@@ -369,7 +500,7 @@ Proof. move=> x; reduce_over @M g y IHx. Qed.
 
 Include Push.
 
-Program Instance Pull_Category `{MonadLaws m} : Category := {
+#[export] Program Instance Pull_Category `{MonadLaws m} : Category := {
   ob     := Type * Type;
   hom    := fun A B => fst A -> Proxy (fst B) (snd B) (fst A) (snd A) m r;
   c_id   := fun A => @pull (fst A) (snd A) m r n d;
@@ -377,7 +508,7 @@ Program Instance Pull_Category `{MonadLaws m} : Category := {
 }.
 Obligation 1. (* Right identity *)
   extensionality z.
-  assume_infinity => /=.
+  rewrite Hpull /=.
   move: (f z).
   reduce_proxy IHx simpl.
   congr (Respond _ _).
@@ -389,11 +520,11 @@ Obligation 2. (* Left identity *)
   extensionality z.
   move: (f z).
   reduce_proxy IHx simpl.
-  assume_infinity.
+  rewrite Hpull /=.
   congr (Request _ _).
-  rewrite -/pull Hpull.
-  rewrite E in IHx.
-  move/functional_extensionality in IHx.
+  rewrite -/pull.
+  extensionality w.
+  simpl.
   exact: IHx.
 Qed.
 Obligation 3. (* Associativity *)
@@ -484,13 +615,14 @@ Proof.
   move: (f _).
   by reduce_proxy IHx
     (first [ move/functional_extensionality in IHx;
-             rewrite /= /funcomp -IHx;
+             step_reduce;
+             rewrite /comp -IHx;
              (* jww (2015-06-09): We should be able to use [reflect_distrib]
                 here, but the types are not general enough, which means the
                 types of some of these theorems may be insufficient. *)
              move: (g _);
              reduce_proxy IHy (rewrite /bind /=)
-           | rewrite /= ]).
+           | step_reduce; simpl ]).
 Qed.
 
 Corollary distributivity :

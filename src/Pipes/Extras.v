@@ -1,3 +1,4 @@
+From Coq Require Import ssreflect ssrfun ssrbool.
 Require Import Hask.Prelude.
 Require Import Hask.Control.Monad.
 Require Import P.Pipes.
@@ -32,7 +33,7 @@ Definition fromProxy `(p : Proxy a' a b' b m r) : SProxy a' a b' b m r :=
     let fix go p := match p with
     | Request a' fa  => req a' (go \o fa)
     | Respond b  fb' => res b  (go \o fb')
-    | M _     g  h   => mon _  (go \o g) h
+    | M g  h   => mon _  (go \o g) h
     | Pure    x      => pur x
     end in
     go p.
@@ -81,7 +82,7 @@ Proof.
   extensionality pur.
   move: (toProxy x).
   reduce_proxy IHx
-    (rewrite /fromProxy /funcomp /=;
+    (rewrite /fromProxy /comp /=;
      try (move/functional_extensionality in IHx;
           rewrite IHx ?f_const ?const_f)).
   exact: SProxy_parametricity.

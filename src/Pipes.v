@@ -1,3 +1,4 @@
+From Coq Require Import ssreflect ssrfun ssrbool.
 Require Import Hask.Prelude.
 Require Import Hask.Control.Monad.
 Require Import Hask.Data.Functor.Identity.
@@ -43,18 +44,32 @@ Fixpoint next `{Monad m} `(p : Producer a m r) :
   match p with
   | Request v _  => False_rect _ v
   | Respond a fu => return_ $ Right (a, fu tt)
-  | M _     g h  => h >>= (next \o g)
+  | M g h  => h >>= (next \o g)
   | Pure    r    => return_ $ Left r
   end.
 
-Definition each `{Monad m} {a} (xs : seq a) : Producer' a m unit :=
-  fun _ _ => mapM_ yield xs.
+Fixpoint each_go `{Monad m} {a x' x} (xs : list a) :
+  Proxy x' x unit a m unit :=
+  match xs with
+  | nil => pure tt
+  | cons x rest => yield x >>= fun _ => each_go rest
+  end.
+
+Definition each `{Monad m} {a} (xs : list a) : Producer' a m unit :=
+  fun _ _ => each_go xs.
 Arguments each {m _ a} xs {_ _}.
 
 Definition discard `{Monad m} {a} : a -> m unit := fun _ => return_ tt.
 
-Definition every `{Monad m} `(xs : seq a) : Producer' a m unit :=
-  fun _ _ => foldM (const yield) tt xs.
+Fixpoint every_go `{Monad m} {a x' x} (acc : unit) (xs : list a) :
+  Proxy x' x unit a m unit :=
+  match xs with
+  | nil => pure acc
+  | cons x rest => yield x >>= fun u => every_go u rest
+  end.
+
+Definition every `{Monad m} `(xs : list a) : Producer' a m unit :=
+  fun _ _ => every_go tt xs.
 Arguments every {m _ a} xs {_ _}.
 
 (****************************************************************************
@@ -73,8 +88,10 @@ Theorem for_yield_f `{MonadLaws m} :
   forall `(f : b -> Proxy x' x c' c m unit) x,
     forP (yield x) f = f x.
 Proof.
-  move=> *.
-  by rewrite /yield /respond /= /bind /funcomp join_fmap_pure_x.
+  move=> ? ? ? ? ? f x0.
+  rewrite /yield /respond forP_Respond.
+  have ->: (fun b' => forP (Pure b') f) = Pure by [].
+  exact: join_fmap_pure_x.
 Qed.
 
 (* Re-yielding every element of a stream returns the original stream *)
@@ -82,7 +99,7 @@ Theorem for_yield `{MonadLaws m} : forall `(s : Proxy x' x unit b m unit),
   forP s yield = s.
 Proof.
   move=> ? ? ?.
-  by reduce_proxy IHx (rewrite /yield /respond /= /bind /=).
+  by reduce_proxy IHx (try step_reduce; simpl).
 Qed.
 
 (* Nested for loops can become a sequential for loops if the inner loop
