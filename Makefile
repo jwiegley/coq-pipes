@@ -67,3 +67,45 @@ clean: Makefile.coq
 	git clean -dfX
 	find src -depth -name .coq-native -exec rm -fr {} \;
 	rm -fr latex
+
+# Development targets
+
+.PHONY: lint timed profile check-admitted format-check format \
+	build-strict coqchk
+
+lint: check-admitted format-check build-strict
+	@echo "All lint checks passed"
+
+build-strict: Makefile.coq
+	$(MAKE) -f Makefile.coq COQEXTRAFLAGS="-w +all"
+
+timed: Makefile.coq
+	$(MAKE) -f Makefile.coq TIMED=1
+
+profile: Makefile.coq
+	$(MAKE) -f Makefile.coq COQEXTRAFLAGS="-ltac-profiling" 2>&1 | tee profile.log
+
+check-admitted:
+	@if $(MISSING) 2>/dev/null; then \
+		echo "ERROR: Found admitted or aborted proofs"; \
+		exit 1; \
+	fi
+	@echo "OK: No admitted proofs found"
+
+format-check:
+	@if find src -name '*.v' -print0 | xargs -0 grep -Pn '\s+$$' 2>/dev/null; then \
+		echo "ERROR: Trailing whitespace found"; \
+		exit 1; \
+	fi
+	@echo "OK: No trailing whitespace found"
+
+format:
+	find src -name '*.v' | while read f; do \
+		sed 's/[[:space:]]*$$//' "$$f" > "$$f.tmp" && mv "$$f.tmp" "$$f"; \
+	done
+	@echo "Formatted: stripped trailing whitespace from .v files"
+
+coqchk: all
+	coqchk -R src P \
+		P.Pipes P.Pipes.Core P.Pipes.Internal \
+		P.Pipes.Prelude P.Pipes.Extras

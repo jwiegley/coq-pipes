@@ -22,3 +22,8 @@
 /coq-pipes.toc
 /latex/
 coqdoc.sty
+/result
+/result-*
+.direnv/
+build-timing.log
+profile.log

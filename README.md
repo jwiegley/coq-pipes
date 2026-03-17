@@ -15,6 +15,49 @@ of the laws, which were an excellent reference. Thanks are also due to Paolo
 Capriotti and Dan Burton, with whom I never interacted, but who where the
 spiritual fathers of this formalization effort.
 
+## Building
+
+You'll need Coq (8.14 through 8.20) and the
+[coq-haskell](https://github.com/jwiegley/coq-haskell) library.
+
+The simplest way to get everything set up is with Nix:
+
+    nix develop    # drops you into a shell with all dependencies
+    make           # builds all the proofs
+
+Or build directly without entering a shell:
+
+    nix build
+
+To run the full suite of checks (build, kernel verification via `coqchk`, no
+admitted proofs, no trailing whitespace):
+
+    nix flake check
+
+If you prefer OPAM:
+
+    opam install coq-haskell
+    make
+
+There are also several `make` targets for development:
+
+- `make lint` -- runs all lint checks (admitted proofs, whitespace, strict warnings)
+- `make timed` -- builds with per-file timing data
+- `make profile` -- builds with Ltac profiling and writes `profile.log`
+- `make coqchk` -- verifies proofs at the kernel level
+- `make format` -- strips trailing whitespace from `.v` files
+
+## Development
+
+Pre-commit hooks are managed by [Lefthook](https://github.com/evilmartians/lefthook).
+They're installed automatically when you enter the Nix development shell. The
+hooks check for admitted proofs, trailing whitespace, and run `nix flake check`
+-- all in parallel.
+
+## License
+
+BSD 3-Clause. See [LICENSE.md](LICENSE.md).
+
 ## Laws proven
 
 **43** laws were proven, with 7 requiring a compromise documented below. These

@@ -1,0 +1,22 @@
+pre-commit:
+  parallel: true
+  commands:
+    no-admitted:
+      glob: "*.v"
+      run: |
+        if find src -name '*.v' ! -name Extract.v -print0 | \
+           xargs -0 grep -E -l '^\s*(Abort|Admitted)\.' 2>/dev/null; then
+          echo "ERROR: Found admitted or aborted proofs"
+          exit 1
+        fi
+    trailing-whitespace:
+      glob: "*.v"
+      run: |
+        if find src -name '*.v' -print0 | \
+           xargs -0 grep -Pn '\s+$' 2>/dev/null; then
+          echo "ERROR: Found trailing whitespace"
+          exit 1
+        fi
+    nix-check:
+      glob: "*.{v,nix}"
+      run: nix flake check --no-warn-dirty 2>&1
